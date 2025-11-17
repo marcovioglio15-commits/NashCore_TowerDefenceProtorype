@@ -19,6 +19,6 @@ MonoBehaviour:
   autoSelectByDeviceType: 1
   forcedProfile: 1
   editorPreviewProfile: 0
-  forceStrictPlayArea: 1
-  allowRuntimeRecalculation: 1
-  resolutionCheckInterval: 0.75
+  <forceStrictPlayArea>k__BackingField: 1
+  <allowRuntimeRecalculation>k__BackingField: 1
+  <resolutionCheckInterval>k__BackingField: 0.006

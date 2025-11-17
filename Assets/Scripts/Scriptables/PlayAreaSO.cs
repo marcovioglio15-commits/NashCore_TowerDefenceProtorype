@@ -33,7 +33,7 @@ public class PlayAreaSO : ScriptableObject
     [SerializeField] private DeviceProfile forcedProfile = DeviceProfile.Desktop;
 
     [Tooltip("Profile used for previews while in the editor when automatic selection is enabled.")]
-    [SerializeField] private DeviceProfile editorPreviewProfile = DeviceProfile.Desktop;
+    [SerializeField] private DeviceProfile editorPreviewProfile;
     #endregion
 
     #region Behavior
