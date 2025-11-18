@@ -1,0 +1,355 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Grid
+{
+    [DefaultExecutionOrder(-200)]
+    /// <summary>
+    /// Manages a 3D gameplay grid with offset-based origin, bitmask node states and layered debug gizmos.
+    /// </summary>
+    public class Grid3D : MonoBehaviour
+    {
+        #region Serialized Fields
+
+        [SerializeField]
+        [Tooltip("Number of cells along the X axis of the grid.")]
+        private int gridSizeX = 10;
+
+        [SerializeField]
+        [Tooltip("Number of cells along the Z axis of the grid.")]
+        private int gridSizeZ = 10;
+
+        [SerializeField]
+        [Tooltip("Offset relative to transform.position used as grid origin. Y defines grid height.")]
+        private Vector3 originOffset = Vector3.zero;
+
+        [SerializeField]
+        [Tooltip("Size of each cell in world units.")]
+        private float cellSize = 1.0f;
+
+        [Header("Static Map Configuration")]
+
+        [SerializeField]
+        [Tooltip("Grid coordinates that are walkable.")]
+        private Vector2Int[] walkableNodes;
+
+        [SerializeField]
+        [Tooltip("Grid coordinates where towers can be built.")]
+        private Vector2Int[] buildableNodes;
+
+        [SerializeField]
+        [Tooltip("Grid coordinates used as enemy goal nodes.")]
+        private Vector2Int[] enemyGoalCells;
+
+        [Header("Enemy Spawn Points")]
+
+        [SerializeField]
+        [Tooltip("Grid coordinates used as enemy spawn points.")]
+        private Vector2Int[] enemySpawnCells;
+
+        [Header("Gizmos")]
+
+        [SerializeField]
+        [Tooltip("Draws grid gizmos when the object is selected.")]
+        private bool drawGridGizmos = true;
+
+        [SerializeField]
+        [Tooltip("Displays (x,z) text above each node.")]
+        private bool drawNodeCoordinates = true;
+
+        [SerializeField]
+        [Tooltip("Color used for walkable cells.")]
+        private Color walkableColor = new Color(0.0f, 1.0f, 0.0f, 0.35f);
+
+        [SerializeField]
+        [Tooltip("Color used for buildable cells.")]
+        private Color buildableColor = new Color(0.0f, 0.5f, 1.0f, 0.35f);
+
+        [SerializeField]
+        [Tooltip("Color used for enemy goal cells.")]
+        private Color goalColor = new Color(1.0f, 1.0f, 0.0f, 0.55f);
+
+        [SerializeField]
+        [Tooltip("Color used for enemy spawn nodes.")]
+        private Color spawnColor = new Color(1.0f, 0.0f, 0.0f, 0.55f);
+
+        [SerializeField]
+        [Tooltip("Color used for disabled nodes.")]
+        private Color disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.35f);
+
+        [SerializeField]
+        [Tooltip("Color used for wireframe lines.")]
+        private Color wireColor = new Color(1.0f, 1.0f, 1.0f, 0.15f);
+
+        #endregion
+
+        #region Runtime
+
+        // Flat array of nodes.
+        private GridNode[] nodes;
+
+        #endregion
+
+        #region Properties
+
+        // Grid origin in world space.
+        public Vector3 Origin
+        {
+            get { return transform.position + originOffset; }
+        }
+
+        public int GridSizeX { get { return gridSizeX; } }
+
+        public int GridSizeZ { get { return gridSizeZ; } }
+
+        public float CellSize { get { return cellSize; } }
+
+        #endregion
+
+        #region Unity
+
+        /// <summary>
+        /// Ensures grid is initialized before gameplay.
+        /// </summary>
+        private void Awake()
+        {
+            InitializeGrid();
+        }
+
+        /// <summary>
+        /// Rebuilds grid in editor when parameters change.
+        /// </summary>
+        private void OnValidate()
+        {
+            if (gridSizeX < 1)
+                gridSizeX = 1;
+
+            if (gridSizeZ < 1)
+                gridSizeZ = 1;
+
+            if (cellSize < 0.01f)
+                cellSize = 0.01f;
+
+            ClampArrayCoords(walkableNodes);
+            ClampArrayCoords(buildableNodes);
+            ClampArrayCoords(enemyGoalCells);
+            ClampArrayCoords(enemySpawnCells);
+
+            InitializeGrid();
+        }
+
+        #endregion
+
+        #region Initialization
+
+        /// <summary>
+        /// Builds or rebuilds the grid, applying static map configuration.
+        /// </summary>
+        private void InitializeGrid()
+        {
+            int total = gridSizeX * gridSizeZ;
+
+            if (nodes == null || nodes.Length != total)
+                nodes = new GridNode[total];
+
+            for (int z = 0; z < gridSizeZ; z++)
+            {
+                for (int x = 0; x < gridSizeX; x++)
+                {
+                    int index = ToIndex(x, z);
+                    Vector3 pos = GridToWorld(x, z);
+
+                    NodeState staticState = 0;
+
+                    if (Contains(walkableNodes, x, z))
+                        staticState |= NodeState.Walkable;
+
+                    if (Contains(buildableNodes, x, z))
+                        staticState |= NodeState.Buildable;
+
+                    if (Contains(enemyGoalCells, x, z))
+                        staticState |= NodeState.IsEnemyGoal;
+
+                    if (nodes[index] == null)
+                        nodes[index] = new GridNode(index, x, z, pos, staticState);
+                    else
+                        nodes[index].SetWorldPosition(pos);
+
+                    nodes[index].SetState(NodeState.Walkable, (staticState & NodeState.Walkable) != 0);
+                    nodes[index].SetState(NodeState.Buildable, (staticState & NodeState.Buildable) != 0);
+                    nodes[index].SetState(NodeState.IsEnemyGoal, (staticState & NodeState.IsEnemyGoal) != 0);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Helpers
+
+        private void ClampArrayCoords(Vector2Int[] arr)
+        {
+            if (arr == null)
+                return;
+
+            int count = arr.Length;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector2Int c = arr[i];
+
+                if (c.x < 0)
+                    c.x = 0;
+
+                if (c.y < 0)
+                    c.y = 0;
+
+                if (c.x >= gridSizeX)
+                    c.x = gridSizeX - 1;
+
+                if (c.y >= gridSizeZ)
+                    c.y = gridSizeZ - 1;
+
+                arr[i] = c;
+            }
+        }
+
+        private bool Contains(Vector2Int[] arr, int x, int z)
+        {
+            if (arr == null)
+                return false;
+
+            int count = arr.Length;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector2Int c = arr[i];
+
+                if (c.x == x && c.y == z)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public int ToIndex(int x, int z)
+        {
+            return x + z * gridSizeX;
+        }
+
+        public Vector3 GridToWorld(int x, int z)
+        {
+            float wx = Origin.x + (x + 0.5f) * cellSize;
+            float wz = Origin.z + (z + 0.5f) * cellSize;
+            float wy = Origin.y;
+            return new Vector3(wx, wy, wz);
+        }
+
+        #endregion
+
+        #region Gizmos
+
+        /// <summary>
+        /// Draws stacked gizmo layers for each node.
+        /// </summary>
+        private void OnDrawGizmosSelected()
+        {
+            if (!drawGridGizmos)
+                return;
+
+            InitializeGrid();
+
+            if (nodes == null)
+                return;
+
+            Color old = Gizmos.color;
+
+            float layerOffset = 0.08f;
+
+            for (int z = 0; z < gridSizeZ; z++)
+            {
+                for (int x = 0; x < gridSizeX; x++)
+                {
+                    GridNode node = nodes[ToIndex(x, z)];
+                    Vector3 basePos = node.WorldPosition;
+                    Vector3 size = new Vector3(cellSize, 0.02f, cellSize);
+
+                    int layerIndex = 0;
+                    Color topLabelColor = disabledColor;
+                    bool anyState = false;
+
+                    if (Contains(walkableNodes, x, z))
+                    {
+                        Vector3 p = basePos + Vector3.up * (layerOffset * layerIndex);
+                        Gizmos.color = walkableColor;
+                        Gizmos.DrawCube(p, size);
+                        Gizmos.color = wireColor;
+                        Gizmos.DrawWireCube(p, size);
+                        topLabelColor = walkableColor;
+                        layerIndex++;
+                        anyState = true;
+                    }
+
+                    if (Contains(buildableNodes, x, z))
+                    {
+                        Vector3 p = basePos + Vector3.up * (layerOffset * layerIndex);
+                        Gizmos.color = buildableColor;
+                        Gizmos.DrawCube(p, size);
+                        Gizmos.color = wireColor;
+                        Gizmos.DrawWireCube(p, size);
+                        topLabelColor = buildableColor;
+                        layerIndex++;
+                        anyState = true;
+                    }
+
+                    if (Contains(enemyGoalCells, x, z))
+                    {
+                        Vector3 p = basePos + Vector3.up * (layerOffset * layerIndex);
+                        Gizmos.color = goalColor;
+                        Gizmos.DrawCube(p, size);
+                        Gizmos.color = wireColor;
+                        Gizmos.DrawWireCube(p, size);
+                        topLabelColor = goalColor;
+                        layerIndex++;
+                        anyState = true;
+                    }
+
+                    if (Contains(enemySpawnCells, x, z))
+                    {
+                        Vector3 p = basePos + Vector3.up * (layerOffset * layerIndex);
+                        Gizmos.color = spawnColor;
+                        Gizmos.DrawCube(p, size);
+                        Gizmos.color = wireColor;
+                        Gizmos.DrawWireCube(p, size);
+                        topLabelColor = spawnColor;
+                        layerIndex++;
+                        anyState = true;
+                    }
+
+                    if (!anyState)
+                    {
+                        Gizmos.color = disabledColor;
+                        Gizmos.DrawCube(basePos, size);
+                        Gizmos.color = wireColor;
+                        Gizmos.DrawWireCube(basePos, size);
+                        topLabelColor = disabledColor;
+                    }
+
+#if UNITY_EDITOR
+                    if (drawNodeCoordinates)
+                    {
+                        float yoff = layerOffset * layerIndex + 0.1f;
+                        Vector3 pos = basePos + Vector3.up * yoff;
+                        string label = x.ToString() + "," + z.ToString();
+                        UnityEditor.Handles.color = topLabelColor;
+                        UnityEditor.Handles.Label(pos, label);
+                    }
+#endif
+                }
+            }
+
+            Gizmos.color = old;
+        }
+
+        #endregion
+    }
+}
