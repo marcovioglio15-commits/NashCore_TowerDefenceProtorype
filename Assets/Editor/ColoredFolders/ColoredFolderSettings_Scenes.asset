@@ -14,11 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   folderPaths:
   - Assets/Scenes
-  - Assets/Scenes/ConsoleToGui
-  - Assets/Scenes/MainMenuScene
   folderColors:
-  - {r: 0, g: 0.7051823, b: 1, a: 0}
-  - {r: 0, g: 0.7051823, b: 1, a: 0}
-  - {r: 0, g: 0.7051823, b: 1, a: 0}
-  folderApplyModes: 020000000200000002000000
-  autoInheritColors: 1
+  - {r: 0.12771447, g: 0.7127971, b: 0.7735849, a: 0}
+  folderApplyModes: 02000000
+  autoInheritColors: 0

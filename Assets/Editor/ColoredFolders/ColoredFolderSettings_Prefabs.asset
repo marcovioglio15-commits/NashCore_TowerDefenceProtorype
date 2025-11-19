@@ -13,36 +13,10 @@ MonoBehaviour:
   m_Name: ColoredFolderSettings_Prefabs
   m_EditorClassIdentifier: 
   folderPaths:
+  - Assets/Scenes
   - Assets/Prefabs
-  - Assets/Prefabs/Buildings
-  - Assets/Prefabs/Managers
-  - Assets/Prefabs/Player
-  - Assets/Prefabs/Road
-  - Assets/Prefabs/Trajectory
-  - Assets/Prefabs/UI
-  - Assets/Prefabs/UI/LocalLeaderboard
-  - Assets/Prefabs/UI/MainMenu
-  - Assets/Prefabs/UI/PauseMenu
-  - Assets/Prefabs/UI/PauseMenu/Button
-  - Assets/Prefabs/UI/Warning
-  - Assets/Prefabs/Buildings/Apartments
-  - Assets/Prefabs/Map
-  - Assets/Prefabs/Buildings/Terrace House
   folderColors:
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  - {r: 0.62932587, g: 0, b: 1, a: 0}
-  folderApplyModes: 020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000
-  autoInheritColors: 1
+  - {r: 0.77254903, g: 0.12941174, b: 0.6277426, a: 0}
+  - {r: 0.9245283, g: 0.3532396, b: 0.807461, a: 0}
+  folderApplyModes: 0200000002000000
+  autoInheritColors: 0

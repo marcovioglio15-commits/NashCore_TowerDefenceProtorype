@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8778598094827874505
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3606223178740235344}
+  - component: {fileID: 4206379570630216907}
+  - component: {fileID: 918669692957908236}
+  m_Layer: 0
+  m_Name: Player
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3606223178740235344
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778598094827874505}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1499.9537, y: 87.94873, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4206379570630216907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778598094827874505}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4307a44e9e20a84eb4b5b36d0de8b63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  grid: {fileID: 0}
+  fallbackTurretPool: {fileID: 11400000, guid: c57960a14253130449463706e7ce18b1, type: 2}
+  turretRoot: {fileID: 0}
+  drawPlacementGizmos: 1
+--- !u!114 &918669692957908236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778598094827874505}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eaf9ccc5f43f51c46a04bccdb1a9bb1b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  buildableTurrets:
+  - {fileID: 11400000, guid: 2a6e837bf419f52429ac8c5391b28608, type: 2}
+  - {fileID: 11400000, guid: 2a6e837bf419f52429ac8c5391b28608, type: 2}
+  - {fileID: 11400000, guid: 736b690d20a55834c99eacb338972cd5, type: 2}
+  worldCamera: {fileID: 0}
+  snapRadius: 1.5
+  snapCellExpansion: 1
+  validPreviewColor: {r: 0.3, g: 0.9, b: 0.4, a: 0.65}
+  invalidPreviewColor: {r: 0.9, g: 0.3, b: 0.3, a: 0.5}
+  drawPreviewGizmos: 1

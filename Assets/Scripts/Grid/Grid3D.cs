@@ -300,6 +300,29 @@ namespace Grid
             return true;
         }
 
+        /// <summary>
+        /// Attempts to convert a world position into the owning grid coordinate.
+        /// </summary>
+        public bool TryWorldToGrid(Vector3 worldPosition, out Vector2Int coords)
+        {
+            coords = Vector2Int.zero;
+
+            if (cellSize <= Mathf.Epsilon)
+                return false;
+
+            Vector3 origin = Origin;
+            float normalizedX = (worldPosition.x - origin.x) / cellSize;
+            float normalizedZ = (worldPosition.z - origin.z) / cellSize;
+            int gridX = Mathf.FloorToInt(normalizedX);
+            int gridZ = Mathf.FloorToInt(normalizedZ);
+            coords = new Vector2Int(gridX, gridZ);
+
+            if (!IsWithinBounds(coords))
+                return false;
+
+            return true;
+        }
+
         public Vector3 GridToWorld(int x, int z)
         {
             float wx = Origin.x + (x + 0.5f) * cellSize;
