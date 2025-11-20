@@ -281,6 +281,7 @@ namespace Grid
             bool traversable = origin.Is(NodeState.Walkable) && destination.Is(NodeState.Walkable);
             return traversable ? 1 : int.MaxValue;
         }
+        
 
         /// <summary>
         /// Returns world coordinates for the provided grid coordinate.

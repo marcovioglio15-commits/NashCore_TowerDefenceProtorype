@@ -8,7 +8,7 @@ namespace Player.Inventory
     /// <summary>
     /// Central authority containing the list of buildable turrets and serving placement requests driven by the UI.
     /// </summary>
-    [RequireComponent(typeof(TurretPlacementService))]
+    [RequireComponent(typeof(TurretPlacementLogic))]
     public class BuildablesInventory : MonoBehaviour
     {
         #region Variables And Properties
@@ -35,7 +35,7 @@ namespace Player.Inventory
         #endregion
 
         #region Runtime State
-        private TurretPlacementService placementService;
+        private TurretPlacementLogic placementService;
         private Grid3D grid;
         private readonly List<TurretClassDefinition> catalogBuffer = new List<TurretClassDefinition>();
         private TurretClassDefinition activeDefinition;
@@ -54,7 +54,7 @@ namespace Player.Inventory
         /// </summary>
         private void Awake()
         {
-            placementService = GetComponent<TurretPlacementService>();
+            placementService = GetComponent<TurretPlacementLogic>();
             if (placementService != null)
                 grid = placementService.Grid;
         }

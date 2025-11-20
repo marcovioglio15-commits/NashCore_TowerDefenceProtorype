@@ -52,6 +52,8 @@ namespace Scriptables.Turrets
         private TurretSpawnContext lastContext;
         private float cooldownTimer;
         private float heatLevel;
+        private TurretStatSnapshot activeStats;
+        private bool freeAimActive;
 
         #endregion
 
@@ -65,6 +67,26 @@ namespace Scriptables.Turrets
         public TurretSpawnContext LastContext
         {
             get { return lastContext; }
+        }
+
+        public TurretStatSnapshot ActiveStats
+        {
+            get { return activeStats; }
+        }
+
+        public Transform YawPivot
+        {
+            get { return yawRoot != null ? yawRoot : transform; }
+        }
+
+        public Transform PitchPivot
+        {
+            get { return pitchRoot; }
+        }
+
+        public bool IsInFreeAim
+        {
+            get { return freeAimActive; }
         }
 
         public bool HasDefinition
@@ -111,6 +133,7 @@ namespace Scriptables.Turrets
         public PooledTurret OnSpawn(TurretSpawnContext context)
         {
             lastContext = context;
+            freeAimActive = false;
             ApplyDefinition(context.Definition != null ? context.Definition : defaultDefinition);
             if (!HasDefinition)
             {
@@ -133,6 +156,8 @@ namespace Scriptables.Turrets
             heatLevel = 0f;
             lastContext = new TurretSpawnContext(defaultDefinition, Vector3.zero, Quaternion.identity, null);
             activeDefinition = defaultDefinition;
+            freeAimActive = false;
+            RebuildStats();
         }
 
         #endregion
@@ -166,7 +191,10 @@ namespace Scriptables.Turrets
             if (yawRoot == null && pitchRoot == null)
                 return;
 
-            float maxDegrees = Definition.Targeting.TurnRate * deltaTime;
+            if (activeStats.TurnRate <= 0f)
+                return;
+
+            float maxDegrees = activeStats.TurnRate * deltaTime;
             Vector3 planarForward = new Vector3(forward.x, 0f, forward.z);
             if (planarForward.sqrMagnitude > 0f && yawRoot != null)
             {
@@ -209,7 +237,7 @@ namespace Scriptables.Turrets
         /// </summary>
         public void AddHeat(float amount)
         {
-            heatLevel = Mathf.Clamp(heatLevel + amount, 0f, Definition.Sustain.MaxHeat);
+            heatLevel = Mathf.Clamp(heatLevel + amount, 0f, activeStats.MaxHeat);
         }
 
         /// <summary>
@@ -217,11 +245,20 @@ namespace Scriptables.Turrets
         /// </summary>
         public void CooldownHeat(float deltaTime)
         {
-            if (Definition.Sustain.HeatDissipationSeconds <= 0f)
+            if (activeStats.HeatDissipationSeconds <= 0f)
                 return;
 
-            float dissipation = deltaTime / Definition.Sustain.HeatDissipationSeconds * Definition.Sustain.MaxHeat;
+            float dissipation = deltaTime / activeStats.HeatDissipationSeconds * activeStats.MaxHeat;
             heatLevel = Mathf.Max(0f, heatLevel - dissipation);
+        }
+
+        /// <summary>
+        /// Toggles manual control mode and rebuilds the active stat snapshot.
+        /// </summary>
+        public void SetFreeAimState(bool enabled)
+        {
+            freeAimActive = enabled;
+            RebuildStats();
         }
 
         #endregion
@@ -233,20 +270,23 @@ namespace Scriptables.Turrets
             if (!HasDefinition)
                 return;
 
+            if (activeStats.Range <= 0f)
+                RebuildStats();
+
             Gizmos.color = rangeColor;
-            Gizmos.DrawWireSphere(transform.position, Definition.Targeting.Range);
+            Gizmos.DrawWireSphere(transform.position, activeStats.Range);
 
             Gizmos.color = footprintColor;
-            Gizmos.DrawWireSphere(transform.position, Definition.Placement.FootprintRadius);
+            Gizmos.DrawWireSphere(transform.position, activeStats.FootprintRadius);
 
             if (muzzle == null)
                 return;
 
             if (Definition.AutomaticFire.ProjectilesPerShot > 1 && Definition.AutomaticFire.Pattern == TurretFirePattern.Cone)
-                DrawConeGizmo(Definition.AutomaticFire.ConeAngleDegrees, Definition.Targeting.Range);
+                DrawConeGizmo(activeStats.AutomaticConeAngleDegrees, activeStats.Range);
 
             if (Definition.FreeAimFire.ProjectilesPerShot > 1 && Definition.FreeAimFire.Pattern == TurretFirePattern.Cone)
-                DrawConeGizmo(Definition.FreeAimFire.ConeAngleDegrees, Definition.Targeting.Range * 0.75f);
+                DrawConeGizmo(activeStats.FreeAimConeAngleDegrees, activeStats.Range * 0.75f);
         }
 
         /// <summary>
@@ -262,7 +302,7 @@ namespace Scriptables.Turrets
 
             Gizmos.DrawLine(muzzle.position, muzzle.position + left);
             Gizmos.DrawLine(muzzle.position, muzzle.position + right);
-            Gizmos.DrawWireSphere(muzzle.position + forward * length, Definition.Placement.Clearance + 0.05f);
+            Gizmos.DrawWireSphere(muzzle.position + forward * length, activeStats.Clearance + 0.05f);
         }
 
         #endregion
@@ -278,6 +318,7 @@ namespace Scriptables.Turrets
                 return;
 
             activeDefinition = definition;
+            RebuildStats();
         }
 
         /// <summary>
@@ -290,6 +331,20 @@ namespace Scriptables.Turrets
                 transform.SetParent(context.Parent, true);
             else
                 transform.SetParent(null, false);
+        }
+
+        /// <summary>
+        /// Recomputes runtime stats using the active definition and free-aim flag.
+        /// </summary>
+        private void RebuildStats()
+        {
+            if (activeDefinition == null)
+            {
+                activeStats = default;
+                return;
+            }
+
+            activeStats = TurretStatSnapshot.Create(activeDefinition, freeAimActive);
         }
 
         #endregion

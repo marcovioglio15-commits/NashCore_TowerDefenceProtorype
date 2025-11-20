@@ -20,7 +20,7 @@ namespace Player.Build
         [Tooltip("Maximum raycast distance considered when scanning for turrets.")][SerializeField] private float maxRaycastDistance = 500f;
 
         [Header("Placement")]
-        [Tooltip("Placement service used to despawn and respawn turrets during relocation.")][SerializeField] private TurretPlacementService placementService;
+        [Tooltip("Placement service used to despawn and respawn turrets during relocation.")][SerializeField] private TurretPlacementLogic placementService;
 
         [Header("Timing")]
         [Tooltip("Seconds that a turret must be held before drag relocation becomes available.")][SerializeField] private float repositionHoldDuration = 0.35f;

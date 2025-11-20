@@ -24,6 +24,9 @@ public static class EventsManager
     public static Action<BuildPreviewData> BuildablePreviewUpdated;
     public static Action<BuildPlacementResult> BuildablePlacementResolved;
     public static Action<PooledTurret> TurretPerspectiveRequested;
+    public static Action<PooledTurret> TurretFreeAimStarted;
+    public static Action<PooledTurret> TurretFreeAimEnded;
+    public static Action TurretFreeAimExitRequested;
     #endregion
     #endregion
 
@@ -42,6 +45,9 @@ public static class EventsManager
     public static void InvokeBuildablePreviewUpdated(BuildPreviewData preview)=> BuildablePreviewUpdated?.Invoke(preview);
     public static void InvokeBuildablePlacementResolved(BuildPlacementResult result)=> BuildablePlacementResolved?.Invoke(result);
     public static void InvokeTurretPerspectiveRequested(PooledTurret turret)=> TurretPerspectiveRequested?.Invoke(turret);
+    public static void InvokeTurretFreeAimStarted(PooledTurret turret)=> TurretFreeAimStarted?.Invoke(turret);
+    public static void InvokeTurretFreeAimEnded(PooledTurret turret)=> TurretFreeAimEnded?.Invoke(turret);
+    public static void InvokeTurretFreeAimExitRequested()=> TurretFreeAimExitRequested?.Invoke();
     #endregion
     #endregion
 

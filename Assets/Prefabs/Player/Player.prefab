@@ -9,8 +9,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3606223178740235344}
-  - component: {fileID: 4206379570630216907}
   - component: {fileID: 918669692957908236}
+  - component: {fileID: 6637537964218288145}
+  - component: {fileID: 1221189801945820933}
+  - component: {fileID: 8463089210557255012}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -33,22 +35,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4206379570630216907
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8778598094827874505}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d4307a44e9e20a84eb4b5b36d0de8b63, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  grid: {fileID: 0}
-  fallbackTurretPool: {fileID: 11400000, guid: c57960a14253130449463706e7ce18b1, type: 2}
-  turretRoot: {fileID: 0}
-  drawPlacementGizmos: 1
 --- !u!114 &918669692957908236
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -71,3 +57,62 @@ MonoBehaviour:
   validPreviewColor: {r: 0.3, g: 0.9, b: 0.4, a: 0.65}
   invalidPreviewColor: {r: 0.9, g: 0.3, b: 0.3, a: 0.5}
   drawPreviewGizmos: 1
+--- !u!114 &6637537964218288145
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778598094827874505}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e684663ffbf14746b8111a02fef5a52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  interactionCamera: {fileID: 0}
+  turretLayers:
+    serializedVersion: 2
+    m_Bits: 64
+  maxRaycastDistance: 500
+  placementService: {fileID: 0}
+  repositionHoldDuration: 0.35
+  perspectiveHoldDuration: 1.35
+  holdMovementTolerance: 12
+  dragStartDistance: 18
+--- !u!114 &1221189801945820933
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778598094827874505}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 421ce13ef3b2dd0458beb6db3752d43f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  grid: {fileID: 0}
+  fallbackTurretPool: {fileID: 0}
+  turretRoot: {fileID: 0}
+  drawPlacementGizmos: 1
+--- !u!114 &8463089210557255012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8778598094827874505}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc2c6335a26fc7843adacb1072c8b919, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCamera: {fileID: 0}
+  cameraLocalOffset: {x: 0, y: 0.1, z: -0.85}
+  enterLerpSeconds: 0.4
+  exitLerpSeconds: 0.35
+  yawSensitivity: 0.35
+  pitchSensitivity: 0.3
+  minPitchDegrees: -30
+  maxPitchDegrees: 55
+  minTapCadenceSeconds: 0.05

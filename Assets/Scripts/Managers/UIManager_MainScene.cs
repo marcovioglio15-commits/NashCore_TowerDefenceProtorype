@@ -35,10 +35,20 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     [SerializeField] private Color invalidDragColor = new Color(1f, 0.45f, 0.45f, 0.95f);
 
     [Header("Turret Feedback")]
-    [Tooltip("Camera used to project turret positions while drawing hold indicators.")][SerializeField] private Camera worldSpaceCamera;
-    [Tooltip("Layer hosting the hold indicator widget.")][SerializeField] private RectTransform worldIndicatorLayer;
-    [Tooltip("Prefab used to render hold progress above turrets.")][SerializeField] private Image holdIndicatorPrefab;
-    [Tooltip("World offset applied when positioning the hold indicator over turrets.")][SerializeField] private float holdIndicatorHeightOffset = 1.75f;
+    [Tooltip("Camera used to project turret positions while drawing hold indicators.")]
+    [SerializeField] private Camera worldSpaceCamera;
+    [Tooltip("Layer hosting the hold indicator widget.")]
+    [SerializeField] private RectTransform holdIndicatorLayer;
+    [Tooltip("Prefab used to render hold progress above turrets.")]
+    [SerializeField] private Image holdIndicatorPrefab;
+    [Tooltip("World offset applied when positioning the hold indicator over turrets.")]
+    [SerializeField] private float holdIndicatorHeightOffset = 1.75f;
+
+    [Header("Free Aim UI")]
+    [Tooltip("Root object hosting the build bar to hide during free-aim control.")] [SerializeField] private GameObject buildBarRoot;
+    [Tooltip("Root object displayed instead of the build bar while in free-aim.")] [SerializeField] private GameObject freeAimRoot;
+    [Tooltip("Image used to visualize the hold progress for exiting free-aim.")] [SerializeField] private Image freeAimExitHoldImage;
+    [Tooltip("Seconds required to hold the exit control before leaving free-aim.")] [SerializeField] private float freeAimExitHoldSeconds = 1.35f;
     #endregion
 
     #region Runtime
@@ -48,6 +58,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     private RectTransform activeHoldRect;
     private Transform activeHoldTarget;
     private bool holdIndicatorActive;
+    private bool freeAimActive;
+    private bool exitHoldActive;
+    private float exitHoldTimer;
     #endregion
     #endregion
 
@@ -65,10 +78,13 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.BuildableDragEnded += HandleDragEnded;
         EventsManager.BuildablePreviewUpdated += HandlePreviewUpdated;
         EventsManager.BuildablePlacementResolved += HandlePlacementResolved;
+        EventsManager.TurretFreeAimStarted += HandleFreeAimStarted;
+        EventsManager.TurretFreeAimEnded += HandleFreeAimEnded;
         if (buildablesInventory != null)
             buildablesInventory.RequestCatalogBroadcast();
 
         HideDragPreview();
+        HideFreeAimUi();
     }
 
     /// <summary>
@@ -82,6 +98,17 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.BuildableDragEnded -= HandleDragEnded;
         EventsManager.BuildablePreviewUpdated -= HandlePreviewUpdated;
         EventsManager.BuildablePlacementResolved -= HandlePlacementResolved;
+        EventsManager.TurretFreeAimStarted -= HandleFreeAimStarted;
+        EventsManager.TurretFreeAimEnded -= HandleFreeAimEnded;
+        HideFreeAimUi();
+    }
+
+    /// <summary>
+    /// Updates free-aim exit hold timers.
+    /// </summary>
+    private void Update()
+    {
+        UpdateExitHoldProgress();
     }
 
     /// <summary>
@@ -93,6 +120,114 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             return;
 
         UpdateHoldIndicatorPosition();
+    }
+    #endregion
+
+    #region Free Aim UI
+    /// <summary>
+    /// Activates free-aim UI when the player possesses a turret.
+    /// </summary>
+    private void HandleFreeAimStarted(PooledTurret turret)
+    {
+        freeAimActive = true;
+        CancelFreeAimExitHold();
+        HideTurretHoldIndicator();
+        ShowFreeAimUi();
+    }
+
+    /// <summary>
+    /// Restores build UI once free-aim concludes.
+    /// </summary>
+    private void HandleFreeAimEnded(PooledTurret turret)
+    {
+        freeAimActive = false;
+        CancelFreeAimExitHold();
+        HideFreeAimUi();
+    }
+
+    /// <summary>
+    /// Hides the build bar and reveals the free-aim controls.
+    /// </summary>
+    private void ShowFreeAimUi()
+    {
+        if (buildBarRoot != null && buildBarRoot.activeSelf)
+            buildBarRoot.SetActive(false);
+
+        if (freeAimRoot != null && !freeAimRoot.activeSelf)
+            freeAimRoot.SetActive(true);
+
+        UpdateExitHoldFill(0f);
+    }
+
+    /// <summary>
+    /// Restores the build bar and hides free-aim specific controls.
+    /// </summary>
+    private void HideFreeAimUi()
+    {
+        if (buildBarRoot != null && !buildBarRoot.activeSelf)
+            buildBarRoot.SetActive(true);
+
+        if (freeAimRoot != null && freeAimRoot.activeSelf)
+            freeAimRoot.SetActive(false);
+
+        freeAimActive = false;
+        CancelFreeAimExitHold();
+    }
+
+    /// <summary>
+    /// Starts the hold countdown used to exit free-aim.
+    /// </summary>
+    public void BeginFreeAimExitHold()
+    {
+        if (!freeAimActive)
+            return;
+
+        exitHoldActive = true;
+        exitHoldTimer = 0f;
+        UpdateExitHoldFill(0f);
+    }
+
+    /// <summary>
+    /// Cancels the hold countdown displayed on the exit control.
+    /// </summary>
+    public void CancelFreeAimExitHold()
+    {
+        exitHoldActive = false;
+        exitHoldTimer = 0f;
+        UpdateExitHoldFill(0f);
+    }
+
+    /// <summary>
+    /// Advances the exit hold countdown when the control is pressed.
+    /// </summary>
+    private void UpdateExitHoldProgress()
+    {
+        if (!exitHoldActive)
+            return;
+
+        float duration = Mathf.Max(0.01f, freeAimExitHoldSeconds);
+        exitHoldTimer += Time.unscaledDeltaTime;
+        float normalized = Mathf.Clamp01(exitHoldTimer / duration);
+        UpdateExitHoldFill(normalized);
+
+        if (exitHoldTimer >= duration)
+        {
+            exitHoldActive = false;
+            exitHoldTimer = 0f;
+            UpdateExitHoldFill(1f);
+            EventsManager.InvokeTurretFreeAimExitRequested();
+        }
+    }
+
+    /// <summary>
+    /// Pushes exit hold progress to the dedicated UI image.
+    /// </summary>
+    private void UpdateExitHoldFill(float normalized)
+    {
+        if (freeAimExitHoldImage == null)
+            return;
+
+        freeAimExitHoldImage.fillAmount = Mathf.Clamp01(normalized);
     }
     #endregion
 
@@ -278,7 +413,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         if (holdIndicatorPrefab == null)
             return;
 
-        RectTransform layer = worldIndicatorLayer != null ? worldIndicatorLayer : dragLayer;
+        RectTransform layer = holdIndicatorLayer != null ? holdIndicatorLayer : dragLayer;
         if (layer == null)
             return;
 
@@ -301,7 +436,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
 
         Vector3 worldPosition = activeHoldTarget.position + Vector3.up * holdIndicatorHeightOffset;
         Vector3 screenPoint = projectionCamera.WorldToScreenPoint(worldPosition);
-        RectTransform layer = worldIndicatorLayer != null ? worldIndicatorLayer : dragLayer;
+        RectTransform layer = holdIndicatorLayer != null ? holdIndicatorLayer : dragLayer;
         if (layer == null)
             return;
 

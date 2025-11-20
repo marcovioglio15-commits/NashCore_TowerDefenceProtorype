@@ -7,7 +7,7 @@ namespace Scriptables.Turrets
     /// <summary>
     /// Handles validation and spawning of player-placed turrets against Grid3D buildable cells.
     /// </summary>
-    public class TurretPlacementService : MonoBehaviour
+    public class TurretPlacementLogic : MonoBehaviour
     {
         #region Variables And Properties
         #region Serialized Fields

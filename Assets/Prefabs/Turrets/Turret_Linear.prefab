@@ -13,7 +13,8 @@ GameObject:
   - component: {fileID: 6161655474962693156}
   - component: {fileID: 1214833116478791477}
   - component: {fileID: 3500021065220146295}
-  m_Layer: 0
+  - component: {fileID: -3591527946027530933}
+  m_Layer: 6
   m_Name: Turret_Linear
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -130,6 +131,27 @@ MonoBehaviour:
   muzzle: {fileID: 4187072906995496151}
   rangeColor: {r: 0.15, g: 0.85, b: 1, a: 0.45}
   footprintColor: {r: 0.25, g: 0.9, b: 0.35, a: 0.25}
+--- !u!114 &-3591527946027530933
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2295266806820940772}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5d5be0838a0edc499ae41c83f018944, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pooledTurret: {fileID: 3500021065220146295}
+  enemyLayers:
+    serializedVersion: 2
+    m_Bits: 256
+  maxScanColliders: 16
+  fallbackCadenceSeconds: 0.35
+  fireArcDegrees: 12
+  fireLockCheckInterval: 0.2
+  drawDebugGizmos: 1
 --- !u!1 &2693720823322707903
 GameObject:
   m_ObjectHideFlags: 0
@@ -141,7 +163,7 @@ GameObject:
   - component: {fileID: 4187072906995496151}
   - component: {fileID: 4886724791576547700}
   - component: {fileID: 8376023279907526871}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Muzzle
   m_TagString: Untagged
   m_Icon: {fileID: 0}

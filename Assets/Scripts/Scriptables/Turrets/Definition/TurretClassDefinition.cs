@@ -50,6 +50,10 @@ namespace Scriptables.Turrets
         [SerializeField] private SustainSettings sustain = new SustainSettings(12, 3.5f, 0.45f, 0.65f);
         [Tooltip("Placement rules relative to Grid3D buildable cells.")]
         [SerializeField]private PlacementSettings placement = new PlacementSettings(0.45f, 0.08f, 0.15f, true);
+
+        [Header("Free Aim Multipliers")]
+        [Tooltip("Multiplicative modifiers applied to each turret statistic while manual control is active.")]
+        [SerializeField] private FreeAimMultipliers freeAimMultipliers = FreeAimMultipliers.Identity;
         #endregion
 
         #region Properties
@@ -132,6 +136,11 @@ namespace Scriptables.Turrets
         public PlacementSettings Placement
         {
             get { return placement; }
+        }
+
+        public FreeAimMultipliers FreeAimMultiplierSettings
+        {
+            get { return freeAimMultipliers; }
         }
 
         #endregion
@@ -344,5 +353,219 @@ namespace Scriptables.Turrets
         }
 
         #endregion
+
+        [Serializable]
+        public struct FreeAimMultipliers
+        {
+            [SerializeField]
+            [Tooltip("Multiplier applied to chassis health while in free aim.")]
+            private float health;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to armor while in free aim.")]
+            private float armor;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to magic resistance while in free aim.")]
+            private float magicResistance;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to passive regeneration per second while in free aim.")]
+            private float passiveRegenPerSecond;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to targeting range while in free aim.")]
+            private float range;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to rotation speed while in free aim.")]
+            private float turnRate;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to dead zone radius while in free aim.")]
+            private float deadZoneRadius;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to retarget interval while in free aim.")]
+            private float retargetInterval;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to automatic fire cadence while in free aim.")]
+            private float automaticCadenceSeconds;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to projectiles per automatic shot while in free aim.")]
+            private float automaticProjectilesPerShot;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to inter-projectile delay for automatic fire while in free aim.")]
+            private float automaticInterProjectileDelay;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to automatic fire cone angle while in free aim.")]
+            private float automaticConeAngleDegrees;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to free aim fire cadence while in free aim.")]
+            private float freeAimCadenceSeconds;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to projectiles per free aim shot while in free aim.")]
+            private float freeAimProjectilesPerShot;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to inter-projectile delay for free aim fire while in free aim.")]
+            private float freeAimInterProjectileDelay;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to free aim cone angle while in free aim.")]
+            private float freeAimConeAngleDegrees;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to magazine size while in free aim.")]
+            private float magazineSize;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to reload duration while in free aim.")]
+            private float reloadSeconds;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to maximum heat while in free aim.")]
+            private float maxHeat;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to heat dissipation time while in free aim.")]
+            private float heatDissipationSeconds;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to the time needed to assume manual control of the turret.")]
+            private float modeSwitchSeconds;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to build cost while in free aim.")]
+            private float buildCost;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to upkeep cost while in free aim.")]
+            private float upkeepCost;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to salvage delay while in free aim.")]
+            private float salvageDelay;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to refund ratio while in free aim.")]
+            private float refundRatio;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to placement footprint radius while in free aim.")]
+            private float footprintRadius;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to placement clearance while in free aim.")]
+            private float clearance;
+
+            [SerializeField]
+            [Tooltip("Multiplier applied to placement height offset while in free aim.")]
+            private float placementHeightOffset;
+
+            public float Health { get { return health; } }
+            public float Armor { get { return armor; } }
+            public float MagicResistance { get { return magicResistance; } }
+            public float PassiveRegenPerSecond { get { return passiveRegenPerSecond; } }
+            public float Range { get { return range; } }
+            public float TurnRate { get { return turnRate; } }
+            public float DeadZoneRadius { get { return deadZoneRadius; } }
+            public float RetargetInterval { get { return retargetInterval; } }
+            public float AutomaticCadenceSeconds { get { return automaticCadenceSeconds; } }
+            public float AutomaticProjectilesPerShot { get { return automaticProjectilesPerShot; } }
+            public float AutomaticInterProjectileDelay { get { return automaticInterProjectileDelay; } }
+            public float AutomaticConeAngleDegrees { get { return automaticConeAngleDegrees; } }
+            public float FreeAimCadenceSeconds { get { return freeAimCadenceSeconds; } }
+            public float FreeAimProjectilesPerShot { get { return freeAimProjectilesPerShot; } }
+            public float FreeAimInterProjectileDelay { get { return freeAimInterProjectileDelay; } }
+            public float FreeAimConeAngleDegrees { get { return freeAimConeAngleDegrees; } }
+            public float MagazineSize { get { return magazineSize; } }
+            public float ReloadSeconds { get { return reloadSeconds; } }
+            public float MaxHeat { get { return maxHeat; } }
+            public float HeatDissipationSeconds { get { return heatDissipationSeconds; } }
+            public float ModeSwitchSeconds { get { return modeSwitchSeconds; } }
+            public float BuildCost { get { return buildCost; } }
+            public float UpkeepCost { get { return upkeepCost; } }
+            public float SalvageDelay { get { return salvageDelay; } }
+            public float RefundRatio { get { return refundRatio; } }
+            public float FootprintRadius { get { return footprintRadius; } }
+            public float Clearance { get { return clearance; } }
+            public float PlacementHeightOffset { get { return placementHeightOffset; } }
+
+            public FreeAimMultipliers(float health, float armor, float magicResistance, float passiveRegenPerSecond, float range, float turnRate, float deadZoneRadius, float retargetInterval, float automaticCadenceSeconds, float automaticProjectilesPerShot, float automaticInterProjectileDelay, float automaticConeAngleDegrees, float freeAimCadenceSeconds, float freeAimProjectilesPerShot, float freeAimInterProjectileDelay, float freeAimConeAngleDegrees, float magazineSize, float reloadSeconds, float maxHeat, float heatDissipationSeconds, float modeSwitchSeconds, float buildCost, float upkeepCost, float salvageDelay, float refundRatio, float footprintRadius, float clearance, float placementHeightOffset)
+            {
+                this.health = Mathf.Max(0.01f, health);
+                this.armor = Mathf.Max(0f, armor);
+                this.magicResistance = Mathf.Max(0f, magicResistance);
+                this.passiveRegenPerSecond = Mathf.Max(0f, passiveRegenPerSecond);
+                this.range = Mathf.Max(0f, range);
+                this.turnRate = Mathf.Max(0f, turnRate);
+                this.deadZoneRadius = Mathf.Max(0f, deadZoneRadius);
+                this.retargetInterval = Mathf.Max(0f, retargetInterval);
+                this.automaticCadenceSeconds = Mathf.Max(0.01f, automaticCadenceSeconds);
+                this.automaticProjectilesPerShot = Mathf.Max(0f, automaticProjectilesPerShot);
+                this.automaticInterProjectileDelay = Mathf.Max(0f, automaticInterProjectileDelay);
+                this.automaticConeAngleDegrees = Mathf.Max(0f, automaticConeAngleDegrees);
+                this.freeAimCadenceSeconds = Mathf.Max(0.01f, freeAimCadenceSeconds);
+                this.freeAimProjectilesPerShot = Mathf.Max(0f, freeAimProjectilesPerShot);
+                this.freeAimInterProjectileDelay = Mathf.Max(0f, freeAimInterProjectileDelay);
+                this.freeAimConeAngleDegrees = Mathf.Max(0f, freeAimConeAngleDegrees);
+                this.magazineSize = Mathf.Max(0f, magazineSize);
+                this.reloadSeconds = Mathf.Max(0f, reloadSeconds);
+                this.maxHeat = Mathf.Max(0f, maxHeat);
+                this.heatDissipationSeconds = Mathf.Max(0.01f, heatDissipationSeconds);
+                this.modeSwitchSeconds = Mathf.Max(0.01f, modeSwitchSeconds);
+                this.buildCost = Mathf.Max(0f, buildCost);
+                this.upkeepCost = Mathf.Max(0f, upkeepCost);
+                this.salvageDelay = Mathf.Max(0f, salvageDelay);
+                this.refundRatio = Mathf.Max(0f, refundRatio);
+                this.footprintRadius = Mathf.Max(0.01f, footprintRadius);
+                this.clearance = Mathf.Max(0f, clearance);
+                this.placementHeightOffset = placementHeightOffset;
+            }
+
+            public static FreeAimMultipliers Identity
+            {
+                get
+                {
+                    FreeAimMultipliers identity = new FreeAimMultipliers(
+                        health:1f,
+                        armor:1f,
+                        magicResistance:1f,
+                        passiveRegenPerSecond:1f,
+                        range:1f, 
+                        turnRate:1f, 
+                        deadZoneRadius:1f, 
+                        retargetInterval:1f,
+                        automaticCadenceSeconds: 1f,
+                        automaticProjectilesPerShot:1f,
+                        automaticInterProjectileDelay: 1f,
+                        automaticConeAngleDegrees: 1f,
+                        freeAimCadenceSeconds: 1f,
+                        freeAimProjectilesPerShot: 1f,
+                        freeAimInterProjectileDelay: 1f,
+                        freeAimConeAngleDegrees: 1f,
+                        magazineSize: 1f,
+                        reloadSeconds: 1f,
+                        maxHeat: 1f,
+                        heatDissipationSeconds: 1f,
+                        modeSwitchSeconds: 1f,
+                        buildCost: 1f,
+                        upkeepCost: 1f,
+                        salvageDelay: 1f, 
+                        refundRatio: 1f,
+                        footprintRadius: 1f, 
+                        clearance: 1f, 
+                        placementHeightOffset: 1f); 
+                    return identity;
+                }
+            }
+        }
     }
 }

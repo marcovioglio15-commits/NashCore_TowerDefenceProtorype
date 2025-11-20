@@ -60,7 +60,9 @@ namespace Scriptables.Turrets.Editor
             toolbarIndex = GUILayout.Toolbar(toolbarIndex, new string[] { "Turrets", "Projectiles" });
             EditorGUILayout.Space(4f);
 
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+            float previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 220f;
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, true, true);
 
             if (toolbarIndex == 0)
                 DrawTurretTab();
@@ -68,6 +70,7 @@ namespace Scriptables.Turrets.Editor
                 DrawProjectileTab();
 
             EditorGUILayout.EndScrollView();
+            EditorGUIUtility.labelWidth = previousLabelWidth;
         }
 
         /// <summary>
@@ -140,6 +143,7 @@ namespace Scriptables.Turrets.Editor
             DrawProperty(serialized, "targeting", true);
             DrawProperty(serialized, "automaticFire", true);
             DrawProperty(serialized, "freeAimFire", true);
+            DrawProperty(serialized, "freeAimMultipliers", true);
             DrawProperty(serialized, "modeSwitchSeconds");
             DrawProperty(serialized, "economy", true);
             DrawProperty(serialized, "sustain", true);
