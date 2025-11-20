@@ -33,7 +33,7 @@ namespace Scriptables.Turrets
         /// <summary>
         /// Spawns a projectile aligned with the provided direction using the turret projectile pool.
         /// </summary>
-        public static void SpawnProjectile(PooledTurret turret, Vector3 direction)
+        public static void SpawnProjectile(PooledTurret turret, Vector3 direction, Transform originOverride = null, Vector3? localOffset = null)
         {
             if (turret == null || !turret.HasDefinition)
                 return;
@@ -44,9 +44,10 @@ namespace Scriptables.Turrets
             if (pool == null || projectileDefinition == null)
                 return;
 
-            Transform muzzle = turret.Muzzle != null ? turret.Muzzle : turret.transform;
-            Vector3 position = muzzle.position;
-            ProjectileSpawnContext context = new ProjectileSpawnContext(projectileDefinition, position, direction, 1f, null);
+            Transform origin = originOverride != null ? originOverride : turret.Muzzle != null ? turret.Muzzle : turret.transform;
+            Vector3 spawnOffset = localOffset.HasValue ? localOffset.Value : Vector3.zero;
+            Vector3 position = origin.position + origin.TransformVector(spawnOffset);
+            ProjectileSpawnContext context = new ProjectileSpawnContext(projectileDefinition, position, direction, 1f, turret.transform, origin, origin.gameObject.layer);
             pool.Spawn(projectileDefinition, context);
         }
         #endregion

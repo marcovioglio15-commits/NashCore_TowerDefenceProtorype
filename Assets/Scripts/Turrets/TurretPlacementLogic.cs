@@ -29,6 +29,7 @@ namespace Scriptables.Turrets
         private readonly Dictionary<Vector2Int, PooledTurret> liveTurrets = new Dictionary<Vector2Int, PooledTurret>();
         private Vector2Int lastPreviewCell;
         private TurretClassDefinition lastPreviewDefinition;
+        private Quaternion lastPreviewRotation = Quaternion.identity;
         private bool hasPreview;
         #endregion
 
@@ -47,13 +48,14 @@ namespace Scriptables.Turrets
         /// <summary>
         /// Verifies whether the turret can be placed on the requested grid cell.
         /// </summary>
-        public bool CanPlace(TurretClassDefinition definition, Vector2Int cell, out Vector3 worldPosition, out string failureReason)
+        public bool CanPlace(TurretClassDefinition definition, Vector2Int cell, Quaternion rotation, out Vector3 worldPosition, out string failureReason)
         {
             worldPosition = Vector3.zero;
             failureReason = string.Empty;
             hasPreview = true;
             lastPreviewCell = cell;
             lastPreviewDefinition = definition;
+            lastPreviewRotation = rotation;
 
             if (definition == null)
             {
@@ -85,7 +87,8 @@ namespace Scriptables.Turrets
                 return false;
             }
 
-            worldPosition = grid.GridToWorld(cell) + Vector3.up * definition.Placement.HeightOffset;
+            Vector3 offset = rotation * definition.Placement.SpawnOffset;
+            worldPosition = grid.GridToWorld(cell) + Vector3.up * definition.Placement.HeightOffset + offset;
             failureReason = string.Empty;
             return true;
         }
@@ -97,7 +100,7 @@ namespace Scriptables.Turrets
         {
             Vector3 position;
             string reason;
-            if (!CanPlace(definition, cell, out position, out reason))
+            if (!CanPlace(definition, cell, rotation, out position, out reason))
                 return null;
 
             TurretPoolSO pool = definition.TurretPool != null ? definition.TurretPool : fallbackTurretPool;
@@ -157,7 +160,7 @@ namespace Scriptables.Turrets
             if (!hasPreview || lastPreviewDefinition == null || grid == null)
                 return;
 
-            Vector3 position = grid.GridToWorld(lastPreviewCell) + Vector3.up * lastPreviewDefinition.Placement.HeightOffset;
+            Vector3 position = grid.GridToWorld(lastPreviewCell) + Vector3.up * lastPreviewDefinition.Placement.HeightOffset + lastPreviewRotation * lastPreviewDefinition.Placement.SpawnOffset;
             Gizmos.color = new Color(0.3f, 1f, 0.6f, 0.35f);
             Gizmos.DrawWireSphere(position, lastPreviewDefinition.Placement.FootprintRadius);
             Gizmos.color = new Color(1f, 0.9f, 0.2f, 0.3f);

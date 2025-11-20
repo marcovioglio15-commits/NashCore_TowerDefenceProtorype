@@ -15,18 +15,26 @@ namespace Player.Build
         #region Variables And Properties
         #region Serialized Fields
         [Header("Raycast")]
-        [Tooltip("Camera used to project touch positions when selecting turrets.")][SerializeField] private Camera interactionCamera;
-        [Tooltip("Layer mask restricting turret selection hits.")][SerializeField] private LayerMask turretLayers = ~0;
-        [Tooltip("Maximum raycast distance considered when scanning for turrets.")][SerializeField] private float maxRaycastDistance = 500f;
+        [Tooltip("Camera used to project touch positions when selecting turrets.")]
+        [SerializeField] private Camera interactionCamera;
+        [Tooltip("Layer mask restricting turret selection hits.")]
+        [SerializeField] private LayerMask turretLayers = ~0;
+        [Tooltip("Maximum raycast distance considered when scanning for turrets.")]
+        [SerializeField] private float maxRaycastDistance = 500f;
 
         [Header("Placement")]
-        [Tooltip("Placement service used to despawn and respawn turrets during relocation.")][SerializeField] private TurretPlacementLogic placementService;
+        [Tooltip("Placement service used to despawn and respawn turrets during relocation.")]
+        [SerializeField] private TurretPlacementLogic placementService;
 
         [Header("Timing")]
-        [Tooltip("Seconds that a turret must be held before drag relocation becomes available.")][SerializeField] private float repositionHoldDuration = 0.35f;
-        [Tooltip("Seconds required to trigger a first-person perspective request on the held turret.")][SerializeField] private float perspectiveHoldDuration = 1.35f;
-        [Tooltip("Maximum finger travel in pixels tolerated while charging hold actions.")][SerializeField] private float holdMovementTolerance = 12f;
-        [Tooltip("Screen distance in pixels required after the hold gate is cleared to begin dragging.")][SerializeField] private float dragStartDistance = 18f;
+        [Tooltip("Seconds that a turret must be held before drag relocation becomes available.")]
+        [SerializeField] private float repositionHoldDuration = 0.35f;
+        [Tooltip("Seconds required to trigger a first-person perspective request on the held turret.")]
+        [SerializeField] private float perspectiveHoldDuration = 1.35f;
+        [Tooltip("Maximum finger travel in pixels tolerated while charging hold actions.")]
+        [SerializeField] private float holdMovementTolerance = 12f;
+        [Tooltip("Screen distance in pixels required after the hold gate is cleared to begin dragging.")]
+        [SerializeField] private float dragStartDistance = 18f;
         #endregion
 
         #region Runtime State

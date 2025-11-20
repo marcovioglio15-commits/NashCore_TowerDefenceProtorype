@@ -54,6 +54,7 @@ namespace Scriptables.Turrets
         private float heatLevel;
         private TurretStatSnapshot activeStats;
         private bool freeAimActive;
+        private Quaternion yawBaseRotation;
 
         #endregion
 
@@ -142,6 +143,7 @@ namespace Scriptables.Turrets
             }
 
             ApplyTransform(context);
+            CacheYawBaseRotation();
             cooldownTimer = 0f;
             heatLevel = 0f;
             return this;
@@ -158,11 +160,12 @@ namespace Scriptables.Turrets
             activeDefinition = defaultDefinition;
             freeAimActive = false;
             RebuildStats();
+            CacheYawBaseRotation();
         }
 
         #endregion
 
-        #region Public API
+        #region Public 
 
         /// <summary>
         /// Assigns a default definition to be used when pool spawning without explicit context.
@@ -200,6 +203,7 @@ namespace Scriptables.Turrets
             {
                 Quaternion desired = Quaternion.LookRotation(planarForward.normalized, Vector3.up);
                 yawRoot.rotation = Quaternion.RotateTowards(yawRoot.rotation, desired, maxDegrees);
+                ClampYawRotation(activeStats.YawClampDegrees);
             }
 
             if (pitchRoot != null)
@@ -345,6 +349,36 @@ namespace Scriptables.Turrets
             }
 
             activeStats = TurretStatSnapshot.Create(activeDefinition, freeAimActive);
+        }
+
+        /// <summary>
+        /// Stores the yaw rotation used as clamp reference.
+        /// </summary>
+        private void CacheYawBaseRotation()
+        {
+            if (yawRoot != null)
+                yawBaseRotation = yawRoot.rotation;
+            else
+                yawBaseRotation = transform.rotation;
+        }
+
+        /// <summary>
+        /// Restricts yaw rotation around the cached baseline.
+        /// </summary>
+        private void ClampYawRotation(float clampDegrees)
+        {
+            if (clampDegrees <= 0f)
+                return;
+
+            if (yawRoot == null)
+                return;
+
+            float maxAngle = clampDegrees * 0.5f;
+            float angle = Quaternion.Angle(yawBaseRotation, yawRoot.rotation);
+            if (angle <= maxAngle)
+                return;
+
+            yawRoot.rotation = Quaternion.RotateTowards(yawBaseRotation, yawRoot.rotation, maxAngle);
         }
 
         #endregion

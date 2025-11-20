@@ -32,6 +32,8 @@ namespace Scriptables.Turrets
         [SerializeField]private float criticalMultiplier = 1.5f;
         [Tooltip("Damage falloff per additional pierced target.")]
         [SerializeField] private float pierceFalloffRatio = 0.2f;
+        [Tooltip("Radius used to probe for collision hits while traveling without relying on physics colliders.")]
+        [SerializeField] private float damageProbeRadius = 0.25f;
 
         [Header("Flight Behaviour")]
         [Tooltip("Units per second and direction speed of the projectile.")]
@@ -89,6 +91,11 @@ namespace Scriptables.Turrets
         public float PierceFalloffRatio
         {
             get { return pierceFalloffRatio; }
+        }
+
+        public float DamageProbeRadius
+        {
+            get { return damageProbeRadius; }
         }
 
         public float Speed
@@ -151,25 +158,45 @@ namespace Scriptables.Turrets
         [Tooltip("Transform used as parent for organizational purposes.")]
         private Transform parent;
 
+        [SerializeField]
+        [Tooltip("Transform that emitted the projectile, used for filtering self hits.")]
+        private Transform source;
+
+        [SerializeField]
+        [Tooltip("Layer applied to the source to filter friendly fire.")]
+        private int sourceLayer;
+
         public ProjectileDefinition Definition { get { return definition; } }
         public Vector3 Position { get { return position; } }
         public Vector3 Direction { get { return direction; } }
         public float SpeedMultiplier { get { return speedMultiplier; } }
         public Transform Parent { get { return parent; } }
+        public Transform Source { get { return source; } }
+        public int SourceLayer { get { return sourceLayer; } }
 
-        public ProjectileSpawnContext(ProjectileDefinition definition, Vector3 position, Vector3 direction, float speedMultiplier = 1f, Transform parent = null)
+        public ProjectileSpawnContext(ProjectileDefinition definition, Vector3 position, Vector3 direction, float speedMultiplier = 1f, Transform parent = null, Transform source = null, int sourceLayer = 0)
         {
             this.definition = definition;
             this.position = position;
             this.direction = direction.sqrMagnitude > 0f ? direction.normalized : Vector3.forward;
             this.speedMultiplier = Mathf.Max(0f, speedMultiplier);
             this.parent = parent;
+            this.source = source;
+            this.sourceLayer = sourceLayer;
         }
 
         public ProjectileSpawnContext WithDefinition(ProjectileDefinition projectileDefinition)
         {
             ProjectileSpawnContext updated = this;
             updated.definition = projectileDefinition;
+            return updated;
+        }
+
+        public ProjectileSpawnContext WithSource(Transform newSource, int newLayer)
+        {
+            ProjectileSpawnContext updated = this;
+            updated.source = newSource;
+            updated.sourceLayer = newLayer;
             return updated;
         }
     }

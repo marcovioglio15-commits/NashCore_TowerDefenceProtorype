@@ -44,11 +44,29 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     [Tooltip("World offset applied when positioning the hold indicator over turrets.")]
     [SerializeField] private float holdIndicatorHeightOffset = 1.75f;
 
-    [Header("Free Aim UI")]
-    [Tooltip("Root object hosting the build bar to hide during free-aim control.")] [SerializeField] private GameObject buildBarRoot;
-    [Tooltip("Root object displayed instead of the build bar while in free-aim.")] [SerializeField] private GameObject freeAimRoot;
-    [Tooltip("Image used to visualize the hold progress for exiting free-aim.")] [SerializeField] private Image freeAimExitHoldImage;
-    [Tooltip("Seconds required to hold the exit control before leaving free-aim.")] [SerializeField] private float freeAimExitHoldSeconds = 1.35f;
+    [Header("Free Aim UI Root")]
+    [Tooltip("Root object hosting the build bar to hide during free-aim control.")] 
+    [SerializeField] private GameObject buildBarRoot;
+    [Tooltip("Root object displayed instead of the build bar while in free-aim.")] 
+    [SerializeField] private GameObject freeAimRoot;
+
+    [Header("Free Aim UI Exit")]
+    [Tooltip("Image used to visualize the hold progress for exiting free-aim.")] 
+    [SerializeField] private Image freeAimExitHoldImage;
+    [Tooltip("Seconds required to hold the exit control before leaving free-aim.")]
+    [SerializeField] private float freeAimExitHoldSeconds = 1.35f;
+    [Tooltip("Alpha applied to the free-aim exit control when idle.")]
+    [SerializeField, Range(0f, 1f)] private float freeAimExitIdleAlpha = 0.45f;
+    [Tooltip("Alpha applied to the free-aim exit control while actively pressed.")] 
+    [SerializeField, Range(0f, 1f)] private float freeAimExitActiveAlpha = 1f;
+    [Tooltip("Canvas group controlling the exit button interactivity.")] 
+    [SerializeField] private CanvasGroup freeAimExitCanvasGroup;
+
+    [Header("Free Aim UI Reticle")]
+    [Tooltip("Reticle displayed while in free-aim; taps inside this rect trigger manual fire.")]
+    [SerializeField] private RectTransform freeAimReticle;
+    [Tooltip("Canvas group used to fade the free-aim reticle.")] 
+    [SerializeField] private CanvasGroup freeAimReticleCanvasGroup;
     #endregion
 
     #region Runtime
@@ -61,6 +79,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     private bool freeAimActive;
     private bool exitHoldActive;
     private float exitHoldTimer;
+    private bool controlsArmed;
+    private bool freeAimUiVisible;
     #endregion
     #endregion
 
@@ -85,6 +105,11 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
 
         HideDragPreview();
         HideFreeAimUi();
+        HideReticle();
+        EnsureExitRaycast();
+        controlsArmed = false;
+        freeAimUiVisible = false;
+        EnsureExitHandler();
     }
 
     /// <summary>
@@ -101,6 +126,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimStarted -= HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded -= HandleFreeAimEnded;
         HideFreeAimUi();
+        HideReticle();
+        controlsArmed = false;
+        freeAimUiVisible = false;
     }
 
     /// <summary>
@@ -133,6 +161,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         CancelFreeAimExitHold();
         HideTurretHoldIndicator();
         ShowFreeAimUi();
+        HideReticle();
+        controlsArmed = false;
     }
 
     /// <summary>
@@ -143,6 +173,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         freeAimActive = false;
         CancelFreeAimExitHold();
         HideFreeAimUi();
+        HideReticle();
     }
 
     /// <summary>
@@ -156,7 +187,10 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         if (freeAimRoot != null && !freeAimRoot.activeSelf)
             freeAimRoot.SetActive(true);
 
-        UpdateExitHoldFill(0f);
+        UpdateExitHoldFill(1f);
+        SetExitHoldAlpha(freeAimExitIdleAlpha);
+        SetExitInteractable(controlsArmed);
+        freeAimUiVisible = true;
     }
 
     /// <summary>
@@ -172,6 +206,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
 
         freeAimActive = false;
         CancelFreeAimExitHold();
+        controlsArmed = false;
+        freeAimUiVisible = false;
     }
 
     /// <summary>
@@ -182,9 +218,13 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         if (!freeAimActive)
             return;
 
+        if (!controlsArmed)
+            return;
+
         exitHoldActive = true;
         exitHoldTimer = 0f;
         UpdateExitHoldFill(0f);
+        SetExitHoldAlpha(freeAimExitActiveAlpha);
     }
 
     /// <summary>
@@ -194,7 +234,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     {
         exitHoldActive = false;
         exitHoldTimer = 0f;
-        UpdateExitHoldFill(0f);
+        UpdateExitHoldFill(1f);
+        SetExitHoldAlpha(freeAimExitIdleAlpha);
     }
 
     /// <summary>
@@ -228,6 +269,119 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             return;
 
         freeAimExitHoldImage.fillAmount = Mathf.Clamp01(normalized);
+    }
+
+    /// <summary>
+    /// Enables reticle and exit UI once camera settling ends.
+    /// </summary>
+    public void ArmFreeAimControls()
+    {
+        if (!freeAimUiVisible)
+            ShowFreeAimUi();
+
+        controlsArmed = true;
+        SetExitInteractable(true);
+        ShowReticle();
+    }
+
+    /// <summary>
+    /// Returns true if the provided screen point lies within the free-aim reticle.
+    /// </summary>
+    public bool IsWithinReticle(Vector2 screenPoint)
+    {
+        if (freeAimReticle == null)
+            return false;
+
+        Camera eventCamera = uiCanvas != null && uiCanvas.renderMode == RenderMode.ScreenSpaceCamera ? uiCanvas.worldCamera : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(freeAimReticle, screenPoint, eventCamera);
+    }
+
+    /// <summary>
+    /// Shows the reticle graphic while in free-aim.
+    /// </summary>
+    private void ShowReticle()
+    {
+        if (freeAimReticle != null && !freeAimReticle.gameObject.activeSelf)
+            freeAimReticle.gameObject.SetActive(true);
+
+        if (freeAimReticleCanvasGroup != null)
+        {
+            freeAimReticleCanvasGroup.alpha = 1f;
+            freeAimReticleCanvasGroup.blocksRaycasts = true;
+            freeAimReticleCanvasGroup.interactable = true;
+        }
+    }
+
+    /// <summary>
+    /// Hides the reticle graphic when leaving free-aim.
+    /// </summary>
+    private void HideReticle()
+    {
+        if (freeAimReticleCanvasGroup != null)
+        {
+            freeAimReticleCanvasGroup.alpha = 0f;
+            freeAimReticleCanvasGroup.blocksRaycasts = false;
+            freeAimReticleCanvasGroup.interactable = false;
+        }
+
+        if (freeAimReticle != null && freeAimReticle.gameObject.activeSelf)
+            freeAimReticle.gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Adjusts the free-aim exit control alpha without affecting raycast blocking.
+    /// </summary>
+    private void SetExitHoldAlpha(float alpha)
+    {
+        if (freeAimExitHoldImage == null)
+            return;
+
+        Color color = freeAimExitHoldImage.color;
+        color.a = Mathf.Clamp01(alpha);
+        freeAimExitHoldImage.color = color;
+    }
+
+    /// <summary>
+    /// Ensures the exit control receives raycasts when visible.
+    /// </summary>
+    private void EnsureExitRaycast()
+    {
+        if (freeAimExitHoldImage != null)
+            freeAimExitHoldImage.raycastTarget = true;
+
+        SetExitInteractable(false);
+    }
+
+    /// <summary>
+    /// Toggles raycast and interactable state on the exit control canvas group.
+    /// </summary>
+    private void SetExitInteractable(bool enabled)
+    {
+        if (freeAimExitCanvasGroup != null)
+        {
+            freeAimExitCanvasGroup.blocksRaycasts = enabled;
+            freeAimExitCanvasGroup.interactable = enabled;
+        }
+        else if (freeAimExitHoldImage != null)
+        {
+            freeAimExitHoldImage.raycastTarget = enabled;
+        }
+    }
+
+    /// <summary>
+    /// Ensures the exit button has a handler bound to this UI manager.
+    /// </summary>
+    private void EnsureExitHandler()
+    {
+        if (freeAimExitHoldImage == null)
+            return;
+
+        FreeAimExitButtonHandler handler = freeAimExitHoldImage.GetComponent<FreeAimExitButtonHandler>();
+        if (handler == null)
+            handler = freeAimExitHoldImage.gameObject.AddComponent<FreeAimExitButtonHandler>();
+
+        if (handler != null)
+            handler.SetUiManager();
     }
     #endregion
 

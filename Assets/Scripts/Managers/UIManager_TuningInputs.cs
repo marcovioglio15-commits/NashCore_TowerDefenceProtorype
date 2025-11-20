@@ -126,11 +126,11 @@ public class UIManager_TuningInputs : Singleton<UIManager_TuningInputs>
         }
     }
 
-    private void PrintDetectedTap()
+    private void PrintDetectedTap(Vector2 screenPosition)
     {
         if (InputDetectionText != null)
         {
-            InputDetectionText.text = "Tap";
+            InputDetectionText.text = $"Tap at {screenPosition}";
             Debug.Log(InputDetectionText.text);
         }
     }

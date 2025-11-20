@@ -12,19 +12,34 @@ namespace Player.Build
         #region Variables And Properties
         #region Serialized Fields
         [Header("Camera")]
-        [Tooltip("Camera interpolated into turret perspective during free-aim control.")] [SerializeField] private Camera targetCamera;
-        [Tooltip("Local offset from the turret anchor applied to the camera.")] [SerializeField] private Vector3 cameraLocalOffset = new Vector3(0f, 0.1f, -0.85f);
-        [Tooltip("Seconds used for linear interpolation when entering free-aim.")] [SerializeField] private float enterLerpSeconds = 0.4f;
-        [Tooltip("Seconds used for linear interpolation when exiting free-aim.")] [SerializeField] private float exitLerpSeconds = 0.35f;
+        [Tooltip("Camera interpolated into turret perspective during free-aim control.")] 
+        [SerializeField] private Camera targetCamera;
+        [Tooltip("Local offset from the turret anchor applied to the camera.")]
+        [SerializeField] private Vector3 cameraLocalOffset = new Vector3(0f, 0.1f, -0.85f);
+        [Tooltip("Seconds used for linear interpolation when entering free-aim.")] 
+        [SerializeField] private float enterLerpSeconds = 0.4f;
+        [Tooltip("Seconds used for linear interpolation when exiting free-aim.")]
+        [SerializeField] private float exitLerpSeconds = 0.35f;
 
         [Header("Rotation")]
-        [Tooltip("Degrees of yaw applied per pixel of horizontal drag or swipe.")] [SerializeField] private float yawSensitivity = 0.35f;
-        [Tooltip("Degrees of pitch applied per pixel of vertical drag or swipe.")] [SerializeField] private float pitchSensitivity = 0.3f;
-        [Tooltip("Minimum pitch angle allowed while manually aiming.")] [SerializeField] private float minPitchDegrees = -30f;
-        [Tooltip("Maximum pitch angle allowed while manually aiming.")] [SerializeField] private float maxPitchDegrees = 55f;
+        [Tooltip("Degrees of yaw applied per pixel of horizontal drag or swipe.")]
+        [SerializeField] private float yawSensitivity = 0.35f;
+        [Tooltip("Maximum yaw offset allowed while possessed, relative to the starting orientation.")] 
+        [SerializeField] private float fallbackYawClampDegrees = 110f;
 
         [Header("Firing")]
-        [Tooltip("Smallest cadence allowed to process manual tap firing.")] [SerializeField] private float minTapCadenceSeconds = 0.05f;
+        [Tooltip("Smallest cadence allowed to process manual tap firing.")] 
+        [SerializeField] private float minTapCadenceSeconds = 0.05f;
+        [Tooltip("Local offset from the possessed camera used as projectile spawn origin.")] 
+        [SerializeField] private Vector3 freeAimProjectileOffset = new Vector3(0f, -0.05f, 0.1f);
+
+        [Header("Visibility")]
+        [Tooltip("Distance at which the controlled turret is hidden to avoid camera clipping.")] 
+        [SerializeField] private float hideDistance = 0.45f;
+        [Tooltip("Normalized camera lerp progress at which turret renderers are hidden.")] 
+        [SerializeField, Range(0f,1f)] private float hideLerpThreshold = 0.65f;
+        [Tooltip("Normalized camera lerp progress at which reticle and exit UI arm.")] 
+        [SerializeField, Range(0f,1f)] private float uiRevealLerpThreshold = 0.85f;
         #endregion
 
         #region Runtime State
@@ -38,6 +53,11 @@ namespace Player.Build
         private Coroutine cameraRoutine;
         private float fireCooldownTimer;
         private bool freeAimActive;
+        private Quaternion anchorBaseRotation;
+        private float currentYawOffset;
+        private bool turretHiddenDuringFreeAim;
+        private Renderer[] cachedTurretRenderers;
+        private bool uiArmed;
         #endregion
         #endregion
 
@@ -94,6 +114,9 @@ namespace Player.Build
 
             if (freeAimActive && (activeTurret == null || !activeTurret.gameObject.activeInHierarchy))
                 ExitFreeAim();
+
+            if (freeAimActive)
+                EvaluateCameraClipping();
         }
         #endregion
 
@@ -140,9 +163,12 @@ namespace Player.Build
         /// <summary>
         /// Issues a manual fire attempt when tapping in free-aim.
         /// </summary>
-        private void HandleTap()
+        private void HandleTap(Vector2 screenPosition)
         {
             if (!freeAimActive)
+                return;
+
+            if (!IsTapWithinReticle(screenPosition))
                 return;
 
             TryFire();
@@ -178,8 +204,12 @@ namespace Player.Build
             activeTurret.SetFreeAimState(true);
             freeAimActive = true;
             fireCooldownTimer = 0f;
+            cachedTurretRenderers = null;
+            turretHiddenDuringFreeAim = false;
+            uiArmed = false;
             CacheCameraState();
             StartCameraLerpToTurret();
+            CacheAnchorOrientation();
             EventsManager.InvokeTurretFreeAimStarted(activeTurret);
         }
 
@@ -196,8 +226,11 @@ namespace Player.Build
             freeAimActive = false;
             activeTurret = null;
             fireCooldownTimer = 0f;
+            currentYawOffset = 0f;
+            uiArmed = false;
             StartCameraReturn();
             EventsManager.InvokeTurretFreeAimEnded(turretToRelease);
+            ShowTurretRenderers();
         }
 
         /// <summary>
@@ -212,6 +245,7 @@ namespace Player.Build
             activeTurret = null;
             freeAimActive = false;
             fireCooldownTimer = 0f;
+            ShowTurretRenderers();
         }
         #endregion
 
@@ -224,29 +258,15 @@ namespace Player.Build
             if (activeTurret == null)
                 return;
 
-            Transform yawTransform = activeTurret.YawPivot;
-            Transform pitchTransform = activeTurret.PitchPivot;
-            if (yawTransform == null && pitchTransform == null)
-                return;
-
             TurretStatSnapshot stats = activeTurret.ActiveStats;
             float maxDegrees = stats.TurnRate * Time.deltaTime;
-            if (maxDegrees <= 0f)
-                return;
+            float clampHalf = ResolveYawClampHalf();
+            float yawDelta = delta.x * yawSensitivity;
+            if (maxDegrees > 0f)
+                yawDelta = Mathf.Clamp(yawDelta, -maxDegrees, maxDegrees);
 
-            float yawDelta = Mathf.Clamp(delta.x * yawSensitivity, -maxDegrees, maxDegrees);
-            float pitchDelta = Mathf.Clamp(-delta.y * pitchSensitivity, -maxDegrees, maxDegrees);
-
-            if (yawTransform != null)
-                yawTransform.Rotate(Vector3.up, yawDelta, Space.World);
-
-            if (pitchTransform != null)
-            {
-                Vector3 euler = pitchTransform.localEulerAngles;
-                float normalized = NormalizeAngle(euler.x);
-                normalized = Mathf.Clamp(normalized + pitchDelta, minPitchDegrees, maxPitchDegrees);
-                pitchTransform.localRotation = Quaternion.Euler(normalized, 0f, 0f);
-            }
+            currentYawOffset = Mathf.Clamp(currentYawOffset + yawDelta, -clampHalf, clampHalf);
+            ApplyCameraYaw();
         }
 
         /// <summary>
@@ -279,11 +299,12 @@ namespace Player.Build
             bool useDelay = pattern == TurretFirePattern.Consecutive && stats.FreeAimInterProjectileDelay > 0f;
             WaitForSeconds delay = useDelay ? new WaitForSeconds(stats.FreeAimInterProjectileDelay) : null;
             Vector3 forward = ResolveFireForward();
+            Transform spawnOrigin = ResolveFreeAimSpawnOrigin();
 
             for (int i = 0; i < projectiles; i++)
             {
                 Vector3 direction = TurretFireUtility.ResolveProjectileDirection(forward, pattern, stats.FreeAimConeAngleDegrees, i, projectiles);
-                TurretFireUtility.SpawnProjectile(activeTurret, direction);
+                TurretFireUtility.SpawnProjectile(activeTurret, direction, spawnOrigin, freeAimProjectileOffset);
 
                 bool shouldDelay = useDelay && i < projectiles - 1;
                 if (shouldDelay && delay != null)
@@ -372,6 +393,7 @@ namespace Player.Build
                 Quaternion targetRotation = anchor.rotation;
                 cameraTransform.position = Vector3.Lerp(startPosition, targetPosition, normalized);
                 cameraTransform.rotation = Quaternion.Lerp(startRotation, targetRotation, normalized);
+                HandleLerpProgress(normalized);
                 elapsed += Time.deltaTime;
                 yield return null;
             }
@@ -379,6 +401,7 @@ namespace Player.Build
             Vector3 finalPosition = anchor.position + anchor.TransformVector(cameraLocalOffset);
             cameraTransform.SetPositionAndRotation(finalPosition, anchor.rotation);
             cameraTransform.SetParent(anchor, true);
+            ApplyCameraYaw();
             cameraRoutine = null;
         }
 
@@ -440,6 +463,39 @@ namespace Player.Build
 
             return activeTurret.transform;
         }
+
+        /// <summary>
+        /// Stores the base orientation used for yaw clamping during free-aim.
+        /// </summary>
+        private void CacheAnchorOrientation()
+        {
+            Transform anchor = ResolveCameraAnchor();
+            if (anchor == null)
+            {
+                anchorBaseRotation = Quaternion.identity;
+                return;
+            }
+
+            anchorBaseRotation = anchor.rotation;
+            currentYawOffset = 0f;
+        }
+
+        /// <summary>
+        /// Applies the current yaw offset to the camera without rotating the turret.
+        /// </summary>
+        private void ApplyCameraYaw()
+        {
+            if (targetCamera == null)
+                return;
+
+            Transform cameraTransform = targetCamera.transform;
+            Transform anchor = ResolveCameraAnchor();
+            Quaternion yawRotation = Quaternion.Euler(0f, currentYawOffset, 0f);
+            if (anchor != null && cameraTransform.parent == anchor)
+                cameraTransform.localRotation = yawRotation;
+            else
+                cameraTransform.rotation = yawRotation * anchorBaseRotation;
+        }
         #endregion
 
         #region Helpers
@@ -448,25 +504,36 @@ namespace Player.Build
         /// </summary>
         private Vector3 ResolveFireForward()
         {
+            if (targetCamera != null)
+                return targetCamera.transform.forward;
+
             if (activeTurret == null)
                 return Vector3.forward;
 
-            if (activeTurret.Muzzle != null)
-                return activeTurret.Muzzle.forward;
-
-            return activeTurret.transform.forward;
+            Quaternion baseRotation = anchorBaseRotation;
+            Quaternion yawRotation = Quaternion.AngleAxis(currentYawOffset, Vector3.up);
+            Vector3 forward = yawRotation * baseRotation * Vector3.forward;
+            return forward.normalized;
         }
 
         /// <summary>
-        /// Normalizes angles into [-180, 180].
+        /// Reacts to camera lerp progress to hide renderers and arm UI at configured thresholds.
         /// </summary>
-        private float NormalizeAngle(float angle)
+        private void HandleLerpProgress(float normalized)
         {
-            float normalized = angle % 360f;
-            if (normalized > 180f)
-                normalized -= 360f;
+            if (!turretHiddenDuringFreeAim && normalized >= hideLerpThreshold)
+            {
+                HideTurretRenderers();
+                turretHiddenDuringFreeAim = true;
+            }
 
-            return normalized;
+            if (!uiArmed && normalized >= uiRevealLerpThreshold)
+            {
+                uiArmed = true;
+                UIManager_MainScene manager = UIManager_MainScene.Instance;
+                if (manager != null)
+                    manager.ArmFreeAimControls();
+            }
         }
 
         /// <summary>
@@ -480,6 +547,98 @@ namespace Player.Build
             cachedAutoController.enabled = cachedAutoEnabled;
             cachedAutoController = null;
             cachedAutoEnabled = false;
+        }
+
+        /// <summary>
+        /// Determines whether the incoming tap lies within the free-aim reticle.
+        /// </summary>
+        private bool IsTapWithinReticle(Vector2 screenPoint)
+        {
+            UIManager_MainScene manager = UIManager_MainScene.Instance;
+            if (manager == null)
+                return false;
+
+            return manager.IsWithinReticle(screenPoint);
+        }
+
+        /// <summary>
+        /// Resolves the transform used as projectile origin during free-aim.
+        /// </summary>
+        private Transform ResolveFreeAimSpawnOrigin()
+        {
+            if (targetCamera != null)
+                return targetCamera.transform;
+
+            if (activeTurret != null && activeTurret.Muzzle != null)
+                return activeTurret.Muzzle;
+
+            return activeTurret != null ? activeTurret.transform : null;
+        }
+
+        /// <summary>
+        /// Returns half of the allowed yaw clamp in degrees.
+        /// </summary>
+        private float ResolveYawClampHalf()
+        {
+            float clampDegrees = fallbackYawClampDegrees;
+            if (activeTurret != null && activeTurret.HasDefinition && activeTurret.ActiveStats.YawClampDegrees > 0f)
+                clampDegrees = activeTurret.ActiveStats.YawClampDegrees;
+
+            clampDegrees = Mathf.Max(0f, clampDegrees);
+            return clampDegrees > 0f ? clampDegrees * 0.5f : float.PositiveInfinity;
+        }
+
+        /// <summary>
+        /// Hides turret renderers if the camera approaches the chassis to avoid clipping.
+        /// </summary>
+        private void EvaluateCameraClipping()
+        {
+            if (targetCamera == null || activeTurret == null || turretHiddenDuringFreeAim)
+                return;
+
+            float sqrThreshold = hideDistance * hideDistance;
+            float sqrDistance = (targetCamera.transform.position - activeTurret.transform.position).sqrMagnitude;
+            if (sqrDistance <= sqrThreshold)
+            {
+                HideTurretRenderers();
+                turretHiddenDuringFreeAim = true;
+            }
+        }
+
+        /// <summary>
+        /// Deactivates all turret renderers cached on possession.
+        /// </summary>
+        private void HideTurretRenderers()
+        {
+            if (activeTurret == null)
+                return;
+
+            if (cachedTurretRenderers == null || cachedTurretRenderers.Length == 0)
+                cachedTurretRenderers = activeTurret.GetComponentsInChildren<Renderer>(true);
+
+            for (int i = 0; i < cachedTurretRenderers.Length; i++)
+            {
+                Renderer renderer = cachedTurretRenderers[i];
+                if (renderer != null && renderer.enabled)
+                    renderer.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Restores turret renderers visibility after free-aim concludes.
+        /// </summary>
+        private void ShowTurretRenderers()
+        {
+            turretHiddenDuringFreeAim = false;
+            if (cachedTurretRenderers == null)
+                return;
+
+            for (int i = 0; i < cachedTurretRenderers.Length; i++)
+            {
+                Renderer renderer = cachedTurretRenderers[i];
+                if (renderer != null && !renderer.enabled)
+                    renderer.enabled = true;
+            }
         }
         #endregion
 

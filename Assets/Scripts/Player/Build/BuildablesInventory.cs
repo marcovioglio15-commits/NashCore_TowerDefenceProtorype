@@ -93,7 +93,7 @@ namespace Player.Inventory
         }
         #endregion
 
-        #region Public API
+        #region Public 
         /// <summary>
         /// Forces a catalog broadcast so late subscribers can catch up.
         /// </summary>
@@ -270,7 +270,9 @@ namespace Player.Inventory
                         continue;
                     }
 
-                    float distance = Vector3.Distance(worldPoint, candidateWorld);
+                    Vector2 worldPointXZ = new Vector2(worldPoint.x, worldPoint.z);
+                    Vector2 candidateXZ = new Vector2(candidateWorld.x, candidateWorld.z);
+                    float distance = Vector2.Distance(worldPointXZ, candidateXZ);
                     if (distance > snapRadius || distance >= closestDistance)
                         continue;
 
@@ -301,7 +303,8 @@ namespace Player.Inventory
             if (placementService == null)
                 return false;
 
-            bool canPlace = placementService.CanPlace(definition, cell, out worldPosition, out failureReason);
+            Quaternion rotation = ResolvePlacementRotation(definition);
+            bool canPlace = placementService.CanPlace(definition, cell, rotation, out worldPosition, out failureReason);
             return canPlace;
         }
 
@@ -319,14 +322,14 @@ namespace Player.Inventory
 
             Vector3 validationPosition;
             string validationMessage;
-            if (!placementService.CanPlace(activeDefinition, previewCell, out validationPosition, out validationMessage))
+            Quaternion rotation = ResolvePlacementRotation(activeDefinition);
+            if (!placementService.CanPlace(activeDefinition, previewCell, rotation, out validationPosition, out validationMessage))
             {
                 BuildPlacementResult fail = new BuildPlacementResult(activeDefinition, false, validationMessage, validationPosition, previewCell);
                 EventsManager.InvokeBuildablePlacementResolved(fail);
                 return;
             }
 
-            Quaternion rotation = ResolvePlacementRotation(activeDefinition);
             PooledTurret spawned = placementService.PlaceTurret(activeDefinition, previewCell, rotation);
             bool success = spawned != null;
             string resultMessage = success ? string.Empty : "Pool returned null turret";

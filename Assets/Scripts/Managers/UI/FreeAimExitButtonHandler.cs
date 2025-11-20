@@ -9,12 +9,29 @@ namespace Managers.UI
     public class FreeAimExitButtonHandler : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
     {
         #region Variables And Properties
-        #region Serialized Fields
-        [Tooltip("UI manager coordinating the free-aim exit hold feedback.")] [SerializeField] private UIManager_MainScene uiManager;
+        #region private
+        private UIManager_MainScene uiManager;
         #endregion
         #endregion
 
         #region Methods
+        #region Unity Events
+        private void Start()
+        {
+            SetUiManager();
+        }
+        #endregion
+
+        #region Public
+        /// <summary>
+        /// Injects the UI manager reference when added dynamically.
+        /// </summary>
+        public void SetUiManager()
+        {
+            uiManager = UIManager_MainScene.Instance;
+        }
+        #endregion
+
         #region EventSystem
         /// <summary>
         /// Begins the hold countdown when the control is pressed.

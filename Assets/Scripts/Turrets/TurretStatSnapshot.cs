@@ -18,6 +18,7 @@ namespace Scriptables.Turrets
         #region Targeting
         public float Range { get; }
         public float TurnRate { get; }
+        public float YawClampDegrees { get; }
         public float DeadZoneRadius { get; }
         public float RetargetInterval { get; }
         #endregion
@@ -55,12 +56,13 @@ namespace Scriptables.Turrets
         public float Clearance { get; }
         public float PlacementHeightOffset { get; }
         public bool AlignWithGrid { get; }
+        public Vector3 PlacementOffset { get; }
         #endregion
         #endregion
 
         #region Methods
         #region Constructors
-        public TurretStatSnapshot(float health, float armor, float magicResistance, float passiveRegenPerSecond, float range, float turnRate, float deadZoneRadius, float retargetInterval, float automaticCadenceSeconds, int automaticProjectilesPerShot, float automaticInterProjectileDelay, float automaticConeAngleDegrees, TurretFirePattern automaticPattern, float freeAimCadenceSeconds, int freeAimProjectilesPerShot, float freeAimInterProjectileDelay, float freeAimConeAngleDegrees, TurretFirePattern freeAimPattern, int magazineSize, float reloadSeconds, float maxHeat, float heatDissipationSeconds, float modeSwitchSeconds, int buildCost, int upkeepCost, float salvageDelay, float refundRatio, float footprintRadius, float clearance, float placementHeightOffset, bool alignWithGrid)
+        public TurretStatSnapshot(float health, float armor, float magicResistance, float passiveRegenPerSecond, float range, float turnRate, float yawClampDegrees, float deadZoneRadius, float retargetInterval, float automaticCadenceSeconds, int automaticProjectilesPerShot, float automaticInterProjectileDelay, float automaticConeAngleDegrees, TurretFirePattern automaticPattern, float freeAimCadenceSeconds, int freeAimProjectilesPerShot, float freeAimInterProjectileDelay, float freeAimConeAngleDegrees, TurretFirePattern freeAimPattern, int magazineSize, float reloadSeconds, float maxHeat, float heatDissipationSeconds, float modeSwitchSeconds, int buildCost, int upkeepCost, float salvageDelay, float refundRatio, float footprintRadius, float clearance, float placementHeightOffset, bool alignWithGrid, Vector3 placementOffset)
         {
             Health = health;
             Armor = armor;
@@ -68,6 +70,7 @@ namespace Scriptables.Turrets
             PassiveRegenPerSecond = passiveRegenPerSecond;
             Range = range;
             TurnRate = turnRate;
+            YawClampDegrees = yawClampDegrees;
             DeadZoneRadius = deadZoneRadius;
             RetargetInterval = retargetInterval;
             AutomaticCadenceSeconds = automaticCadenceSeconds;
@@ -93,6 +96,7 @@ namespace Scriptables.Turrets
             Clearance = clearance;
             PlacementHeightOffset = placementHeightOffset;
             AlignWithGrid = alignWithGrid;
+            PlacementOffset = placementOffset;
         }
         #endregion
 
@@ -111,6 +115,7 @@ namespace Scriptables.Turrets
 
             float range = ApplyFloatMultiplier(definition.Targeting.Range, multipliers.Range, 0.5f);
             float turnRate = ApplyFloatMultiplier(definition.Targeting.TurnRate, multipliers.TurnRate, 0f);
+            float yawClampDegrees = Mathf.Max(0f, definition.Targeting.YawClampDegrees);
             float deadZoneRadius = ApplyFloatMultiplier(definition.Targeting.DeadZoneRadius, multipliers.DeadZoneRadius, 0f);
             float retargetInterval = ApplyFloatMultiplier(definition.Targeting.RetargetInterval, multipliers.RetargetInterval, 0.05f);
 
@@ -137,8 +142,9 @@ namespace Scriptables.Turrets
             float footprintRadius = ApplyFloatMultiplier(definition.Placement.FootprintRadius, multipliers.FootprintRadius, 0.05f);
             float clearance = ApplyFloatMultiplier(definition.Placement.Clearance, multipliers.Clearance, 0f);
             float placementHeightOffset = definition.Placement.HeightOffset * multipliers.PlacementHeightOffset;
+            Vector3 placementOffset = definition.Placement.SpawnOffset;
 
-            TurretStatSnapshot snapshot = new TurretStatSnapshot(health, armor, magicResistance, passiveRegenPerSecond, range, turnRate, deadZoneRadius, retargetInterval, automaticCadenceSeconds, automaticProjectilesPerShot, automaticInterProjectileDelay, automaticConeAngleDegrees, definition.AutomaticFire.Pattern, freeAimCadenceSeconds, freeAimProjectilesPerShot, freeAimInterProjectileDelay, freeAimConeAngleDegrees, definition.FreeAimFire.Pattern, magazineSize, reloadSeconds, maxHeat, heatDissipationSeconds, modeSwitchSeconds, buildCost, upkeepCost, salvageDelay, refundRatio, footprintRadius, clearance, placementHeightOffset, definition.Placement.AlignWithGrid);
+            TurretStatSnapshot snapshot = new TurretStatSnapshot(health, armor, magicResistance, passiveRegenPerSecond, range, turnRate, yawClampDegrees, deadZoneRadius, retargetInterval, automaticCadenceSeconds, automaticProjectilesPerShot, automaticInterProjectileDelay, automaticConeAngleDegrees, definition.AutomaticFire.Pattern, freeAimCadenceSeconds, freeAimProjectilesPerShot, freeAimInterProjectileDelay, freeAimConeAngleDegrees, definition.FreeAimFire.Pattern, magazineSize, reloadSeconds, maxHeat, heatDissipationSeconds, modeSwitchSeconds, buildCost, upkeepCost, salvageDelay, refundRatio, footprintRadius, clearance, placementHeightOffset, definition.Placement.AlignWithGrid, placementOffset);
             return snapshot;
         }
         #endregion

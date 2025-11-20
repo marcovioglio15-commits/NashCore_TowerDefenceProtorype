@@ -36,7 +36,7 @@ namespace Scriptables.Turrets
         [Tooltip("Durability settings defining survivability.")]
         [SerializeField] private DurabilitySettings durability = new DurabilitySettings(150f, 10f, 8f, 1.5f);
         [Tooltip("Targeting and engagement configuration.")]
-        [SerializeField] private TargetingSettings targeting = new TargetingSettings(16f, 240f, 0.5f, 0.75f);
+        [SerializeField] private TargetingSettings targeting = new TargetingSettings(16f, 240f, 130f, 0.5f, 0.75f);
         [Tooltip("Fire mode configuration for automatic targeting.")]
         [SerializeField]private FireModeSettings automaticFire = new FireModeSettings(0.45f, 3, 0.08f, TurretFirePattern.Cone, 18f);
         [Tooltip("Fire mode configuration for first-person free aim.")]
@@ -49,7 +49,7 @@ namespace Scriptables.Turrets
         [Tooltip("Reloading and heat management settings for sustained fire.")]
         [SerializeField] private SustainSettings sustain = new SustainSettings(12, 3.5f, 0.45f, 0.65f);
         [Tooltip("Placement rules relative to Grid3D buildable cells.")]
-        [SerializeField]private PlacementSettings placement = new PlacementSettings(0.45f, 0.08f, 0.15f, true);
+        [SerializeField]private PlacementSettings placement = new PlacementSettings(0.45f, 0.08f, 0.15f, true, Vector3.zero);
 
         [Header("Free Aim Multipliers")]
         [Tooltip("Multiplicative modifiers applied to each turret statistic while manual control is active.")]
@@ -192,6 +192,10 @@ namespace Scriptables.Turrets
             private float turnRate;
 
             [SerializeField]
+            [Tooltip("Maximum yaw swing allowed relative to the spawn orientation. Set to zero to disable clamping.")]
+            private float yawClampDegrees;
+
+            [SerializeField]
             [Tooltip("Dead zone radius around the base where the turret will not fire.")]
             private float deadZoneRadius;
 
@@ -201,13 +205,15 @@ namespace Scriptables.Turrets
 
             public float Range { get { return range; } }
             public float TurnRate { get { return turnRate; } }
+            public float YawClampDegrees { get { return yawClampDegrees; } }
             public float DeadZoneRadius { get { return deadZoneRadius; } }
             public float RetargetInterval { get { return retargetInterval; } }
 
-            public TargetingSettings(float range, float turnRate, float deadZoneRadius, float retargetInterval)
+            public TargetingSettings(float range, float turnRate, float yawClampDegrees, float deadZoneRadius, float retargetInterval)
             {
                 this.range = Mathf.Max(0.5f, range);
                 this.turnRate = Mathf.Max(0f, turnRate);
+                this.yawClampDegrees = Mathf.Max(0f, yawClampDegrees);
                 this.deadZoneRadius = Mathf.Max(0f, deadZoneRadius);
                 this.retargetInterval = Mathf.Max(0.05f, retargetInterval);
             }
@@ -338,17 +344,23 @@ namespace Scriptables.Turrets
             [Tooltip("If true, the turret rotates to align with Grid3D cell axes when placed.")]
             private bool alignWithGrid;
 
+            [SerializeField]
+            [Tooltip("Positional offset relative to the grid cell center applied at spawn.")]
+            private Vector3 spawnOffset;
+
             public float FootprintRadius { get { return footprintRadius; } }
             public float Clearance { get { return clearance; } }
             public float HeightOffset { get { return heightOffset; } }
             public bool AlignWithGrid { get { return alignWithGrid; } }
+            public Vector3 SpawnOffset { get { return spawnOffset; } }
 
-            public PlacementSettings(float footprintRadius, float clearance, float heightOffset, bool alignWithGrid)
+            public PlacementSettings(float footprintRadius, float clearance, float heightOffset, bool alignWithGrid, Vector3 spawnOffset)
             {
                 this.footprintRadius = Mathf.Max(0.05f, footprintRadius);
                 this.clearance = Mathf.Max(0f, clearance);
                 this.heightOffset = heightOffset;
                 this.alignWithGrid = alignWithGrid;
+                this.spawnOffset = spawnOffset;
             }
         }
 

@@ -86,6 +86,9 @@ public class InputManager : Singleton<InputManager>
     /// </summary>
     private void Update()
     {
+        if (!EnhancedTouchSupport.enabled)
+            EnableTouchPipeline();
+
         ProcessTouchGestures();
     }
     #endregion
@@ -264,7 +267,7 @@ public class InputManager : Singleton<InputManager>
 
         bool tapped = !swipeRaised && !dragActive && !holdRaised && totalDisplacement.magnitude <= dragStartDistanceThreshold;
         if (tapped)
-            EventsManager.InvokeTap();
+            EventsManager.InvokeTap(primaryLastPosition);
 
         bool qualifiesLateSwipe = !swipeRaised && totalDisplacement.magnitude >= swipeDistanceThreshold && elapsed <= swipeTimeThreshold;
         if (qualifiesLateSwipe)
