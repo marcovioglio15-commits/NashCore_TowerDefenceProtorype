@@ -53,6 +53,9 @@ namespace Player.Build
         private float dragStartDistanceSqr;
         private Vector3 debugHoldWorldPosition;
         private bool debugHasHoldReference;
+        private bool allowReposition = true;
+        private bool allowPerspective = true;
+        private bool allowHoldFeedback = true;
         #endregion
         #endregion
 
@@ -72,6 +75,8 @@ namespace Player.Build
         private void OnEnable()
         {
             EventsManager.BuildablePlacementResolved += HandlePlacementResolved;
+            EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+            SyncPhasePermissions();
         }
 
         /// <summary>
@@ -80,6 +85,7 @@ namespace Player.Build
         private void OnDisable()
         {
             EventsManager.BuildablePlacementResolved -= HandlePlacementResolved;
+            EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
             if (dragActive || awaitingPlacementResolution)
                 RestoreCachedTurret();
 
@@ -110,6 +116,9 @@ namespace Player.Build
             if (!EnhancedTouchSupport.enabled)
                 return;
 
+            if (!allowReposition && !allowPerspective)
+                return;
+
             if (dragActive)
             {
                 UpdateActiveDrag();
@@ -132,6 +141,9 @@ namespace Player.Build
         /// </summary>
         private void TryBeginHold()
         {
+            if (!allowReposition && !allowPerspective)
+                return;
+
             int touches = Touch.activeTouches.Count;
             if (touches == 0)
                 return;
@@ -193,13 +205,16 @@ namespace Player.Build
             float sqrMagnitude = displacement.sqrMagnitude;
 
             bool withinTolerance = sqrMagnitude <= holdToleranceSqr;
-            if (withinTolerance && holdTimer >= perspectiveHoldDuration)
+            if (allowPerspective && withinTolerance && holdTimer >= perspectiveHoldDuration)
             {
                 RequestPerspectiveMode();
                 return;
             }
 
             if (holdTimer < repositionHoldDuration)
+                return;
+
+            if (!allowReposition)
                 return;
 
             if (sqrMagnitude < dragStartDistanceSqr)
@@ -245,6 +260,12 @@ namespace Player.Build
         /// </summary>
         private void BeginDrag(Touch trackedTouch)
         {
+            if (!allowReposition)
+            {
+                ResetHoldState();
+                return;
+            }
+
             if (placementService == null || trackedTurret == null)
             {
                 ResetHoldState();
@@ -289,6 +310,12 @@ namespace Player.Build
         /// </summary>
         private void RequestPerspectiveMode()
         {
+            if (!allowPerspective)
+            {
+                ResetHoldState();
+                return;
+            }
+
             perspectiveTriggered = true;
             if (trackedTurret != null)
                 EventsManager.InvokeTurretPerspectiveRequested(trackedTurret);
@@ -410,6 +437,9 @@ namespace Player.Build
         /// </summary>
         private void UpdateHoldIndicator(float normalizedProgress)
         {
+            if (!allowHoldFeedback)
+                return;
+
             if (trackedTurret == null)
                 return;
 
@@ -467,6 +497,40 @@ namespace Player.Build
 
             holdToleranceSqr = holdMovementTolerance * holdMovementTolerance;
             dragStartDistanceSqr = dragStartDistance * dragStartDistance;
+        }
+
+        /// <summary>
+        /// Updates access flags when the global game phase changes.
+        /// </summary>
+        private void HandleGamePhaseChanged(GamePhase phase)
+        {
+            SetPhaseCapabilities(phase == GamePhase.Building, phase == GamePhase.Combat);
+            if (!allowReposition)
+                ResetHoldState();
+            if (!allowHoldFeedback)
+                HideHoldIndicator();
+        }
+
+        /// <summary>
+        /// Exposes a way for the GameManager to toggle reposition and perspective permissions.
+        /// </summary>
+        public void SetPhaseCapabilities(bool enableReposition, bool enablePerspectiveMode)
+        {
+            allowReposition = enableReposition;
+            allowPerspective = enablePerspectiveMode;
+            allowHoldFeedback = enablePerspectiveMode;
+        }
+
+        /// <summary>
+        /// Caches permissions from the GameManager when available to avoid race conditions on enable.
+        /// </summary>
+        private void SyncPhasePermissions()
+        {
+            GameManager manager = GameManager.Instance;
+            if (manager == null)
+                return;
+
+            SetPhaseCapabilities(manager.CurrentPhase == GamePhase.Building, manager.CurrentPhase == GamePhase.Combat);
         }
         #endregion
         #endregion

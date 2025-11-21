@@ -1,9 +1,11 @@
+using System.Collections;
 using System.Collections.Generic;
 using Managers.UI;
 using Player.Inventory;
 using Scriptables.Turrets;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// Coordinates the build UI by reacting to catalog, preview and drag events exposed through the EventsManager.
@@ -67,6 +69,26 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     [SerializeField] private RectTransform freeAimReticle;
     [Tooltip("Canvas group used to fade the free-aim reticle.")] 
     [SerializeField] private CanvasGroup freeAimReticleCanvasGroup;
+
+    [Header("Phase Flow")]
+    [Tooltip("Button that toggles between build and combat phases.")]
+    [SerializeField] private Button phaseToggleButton;
+    [Tooltip("Canvas group controlling the visibility of the phase banner.")]
+    [SerializeField] private CanvasGroup phaseBannerCanvasGroup;
+    [Tooltip("Text element displaying the active phase name.")]
+    [SerializeField] private TextMeshProUGUI phaseBannerLabel;
+    [Tooltip("Seconds spent fading the phase banner in after a phase change.")]
+    [SerializeField] private float phaseBannerFadeInSeconds = 0.3f;
+    [Tooltip("Seconds the phase banner stays fully visible after fading in.")]
+    [SerializeField] private float phaseBannerHoldSeconds = 1.6f;
+    [Tooltip("Seconds spent fading the phase banner out when auto-hide is enabled.")]
+    [SerializeField] private float phaseBannerFadeOutSeconds = 0.45f;
+    [Tooltip("Keeps the phase banner visible at all times, updating only its label.")]
+    [SerializeField] private bool phaseBannerAlwaysVisible;
+    [Tooltip("Text displayed when entering the build phase.")]
+    [SerializeField] private string buildingPhaseLabel = "Building Phase";
+    [Tooltip("Text displayed when entering the combat phase.")]
+    [SerializeField] private string combatPhaseLabel = "Combat Phase";
     #endregion
 
     #region Runtime
@@ -81,6 +103,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     private float exitHoldTimer;
     private bool controlsArmed;
     private bool freeAimUiVisible;
+    private Coroutine phaseBannerRoutine;
+    private bool buildUiVisible = true;
     #endregion
     #endregion
 
@@ -100,6 +124,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.BuildablePlacementResolved += HandlePlacementResolved;
         EventsManager.TurretFreeAimStarted += HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded += HandleFreeAimEnded;
+        EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
         if (buildablesInventory != null)
             buildablesInventory.RequestCatalogBroadcast();
 
@@ -110,6 +135,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         controlsArmed = false;
         freeAimUiVisible = false;
         EnsureExitHandler();
+        AttachPhaseButtonListener();
+        SyncPhaseUiState();
     }
 
     /// <summary>
@@ -125,10 +152,17 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.BuildablePlacementResolved -= HandlePlacementResolved;
         EventsManager.TurretFreeAimStarted -= HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded -= HandleFreeAimEnded;
+        EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
+        DetachPhaseButtonListener();
         HideFreeAimUi();
         HideReticle();
         controlsArmed = false;
         freeAimUiVisible = false;
+        if (phaseBannerRoutine != null)
+        {
+            StopCoroutine(phaseBannerRoutine);
+            phaseBannerRoutine = null;
+        }
     }
 
     /// <summary>
@@ -198,8 +232,13 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     /// </summary>
     private void HideFreeAimUi()
     {
-        if (buildBarRoot != null && !buildBarRoot.activeSelf)
-            buildBarRoot.SetActive(true);
+        if (buildBarRoot != null)
+        {
+            if (buildUiVisible && !buildBarRoot.activeSelf)
+                buildBarRoot.SetActive(true);
+            else if (!buildUiVisible && buildBarRoot.activeSelf)
+                buildBarRoot.SetActive(false);
+        }
 
         if (freeAimRoot != null && freeAimRoot.activeSelf)
             freeAimRoot.SetActive(false);
@@ -385,6 +424,204 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     }
     #endregion
 
+    #region Phase Flow UI
+    /// <summary>
+    /// Reacts to global phase switches by updating UI visibility and feedback.
+    /// </summary>
+    private void HandleGamePhaseChanged(GamePhase phase)
+    {
+        ApplyPhaseUiState(phase, true);
+        UpdatePhaseToggleInteractable();
+    }
+
+    /// <summary>
+    /// Ensures build UI and free-aim UI follow the active phase rules.
+    /// </summary>
+    private void ApplyPhaseUiState(GamePhase phase, bool animateBanner)
+    {
+        bool building = phase == GamePhase.Building;
+        SetBuildUiVisibility(building);
+        if (building)
+        {
+            CancelFreeAimExitHold();
+            HideFreeAimUi();
+            HideReticle();
+        }
+
+        if (animateBanner)
+            TriggerPhaseBanner(phase);
+        else
+            ApplyPhaseBannerLabel(phase, phaseBannerAlwaysVisible ? 1f : 0f);
+    }
+
+    /// <summary>
+    /// Toggles the build bar visibility based on current phase and free-aim state.
+    /// </summary>
+    private void SetBuildUiVisibility(bool visible)
+    {
+        buildUiVisible = visible;
+        if (!buildUiVisible)
+        {
+            dragActive = false;
+            HideDragPreview();
+        }
+
+        if (freeAimActive)
+            return;
+
+        if (buildBarRoot != null && buildBarRoot.activeSelf != visible)
+            buildBarRoot.SetActive(visible);
+    }
+
+    /// <summary>
+    /// Updates the phase banner text and optionally animates its visibility.
+    /// </summary>
+    private void TriggerPhaseBanner(GamePhase phase)
+    {
+        if (phaseBannerLabel == null || phaseBannerCanvasGroup == null)
+            return;
+
+        string label = ResolvePhaseLabel(phase);
+        phaseBannerLabel.text = label;
+
+        if (phaseBannerAlwaysVisible)
+        {
+            ApplyPhaseBannerLabel(phase, 1f);
+            return;
+        }
+
+        if (phaseBannerRoutine != null)
+            StopCoroutine(phaseBannerRoutine);
+
+        phaseBannerRoutine = StartCoroutine(PhaseBannerRoutine());
+    }
+
+    /// <summary>
+    /// Coroutine handling fade-in, hold, and fade-out of the phase banner.
+    /// </summary>
+    private IEnumerator PhaseBannerRoutine()
+    {
+        SetPhaseBannerAlpha(0f);
+        float fadeIn = Mathf.Max(0f, phaseBannerFadeInSeconds);
+        float hold = Mathf.Max(0f, phaseBannerHoldSeconds);
+        float fadeOut = Mathf.Max(0f, phaseBannerFadeOutSeconds);
+        float elapsed = 0f;
+        while (elapsed < fadeIn)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float normalized = fadeIn > 0f ? Mathf.Clamp01(elapsed / fadeIn) : 1f;
+            SetPhaseBannerAlpha(normalized);
+            yield return null;
+        }
+
+        SetPhaseBannerAlpha(1f);
+        if (hold > 0f)
+            yield return new WaitForSecondsRealtime(hold);
+
+        elapsed = 0f;
+        while (elapsed < fadeOut)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float normalized = fadeOut > 0f ? Mathf.Clamp01(elapsed / fadeOut) : 1f;
+            SetPhaseBannerAlpha(1f - normalized);
+            yield return null;
+        }
+
+        SetPhaseBannerAlpha(0f);
+        phaseBannerRoutine = null;
+    }
+
+    /// <summary>
+    /// Applies a specific alpha and label to the banner without animation.
+    /// </summary>
+    private void ApplyPhaseBannerLabel(GamePhase phase, float alpha)
+    {
+        if (phaseBannerLabel != null)
+            phaseBannerLabel.text = ResolvePhaseLabel(phase);
+
+        SetPhaseBannerAlpha(alpha);
+    }
+
+    /// <summary>
+    /// Adjusts the banner canvas alpha while blocking interactions.
+    /// </summary>
+    private void SetPhaseBannerAlpha(float alpha)
+    {
+        if (phaseBannerCanvasGroup == null)
+            return;
+
+        float clamped = Mathf.Clamp01(alpha);
+        phaseBannerCanvasGroup.alpha = clamped;
+        phaseBannerCanvasGroup.interactable = false;
+        phaseBannerCanvasGroup.blocksRaycasts = false;
+    }
+
+    /// <summary>
+    /// Provides a human-readable label for the requested phase.
+    /// </summary>
+    private string ResolvePhaseLabel(GamePhase phase)
+    {
+        return phase == GamePhase.Building ? buildingPhaseLabel : combatPhaseLabel;
+    }
+
+    /// <summary>
+    /// Dispatches a phase change request through the global event pipeline.
+    /// </summary>
+    private void HandlePhaseButtonPressed()
+    {
+        EventsManager.InvokeGamePhaseAdvanceRequested();
+        UpdatePhaseToggleInteractable();
+    }
+
+    /// <summary>
+    /// Hooks the click listener needed for the change-phase button.
+    /// </summary>
+    private void AttachPhaseButtonListener()
+    {
+        if (phaseToggleButton == null)
+            return;
+
+        phaseToggleButton.onClick.AddListener(HandlePhaseButtonPressed);
+    }
+
+    /// <summary>
+    /// Removes the click listener to avoid leaks when disabled.
+    /// </summary>
+    private void DetachPhaseButtonListener()
+    {
+        if (phaseToggleButton == null)
+            return;
+
+        phaseToggleButton.onClick.RemoveListener(HandlePhaseButtonPressed);
+    }
+
+    /// <summary>
+    /// Updates the button interactable state based on GameManager constraints.
+    /// </summary>
+    private void UpdatePhaseToggleInteractable()
+    {
+        if (phaseToggleButton == null)
+            return;
+
+        GameManager manager = GameManager.Instance;
+        bool canToggle = manager == null || manager.CanRequestPhaseChange;
+        phaseToggleButton.interactable = canToggle;
+    }
+
+    /// <summary>
+    /// Aligns the UI state with the active phase when enabling before events fire.
+    /// </summary>
+    private void SyncPhaseUiState()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null)
+            return;
+
+        ApplyPhaseUiState(manager.CurrentPhase, false);
+        UpdatePhaseToggleInteractable();
+    }
+    #endregion
+
     #region Catalog
     /// <summary>
     /// Rebuilds the build bar when the catalog changes.
@@ -422,6 +659,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     /// </summary>
     private void HandleDragBegan(TurretClassDefinition definition, Vector2 screenPosition)
     {
+        if (!buildUiVisible)
+            return;
+
         dragActive = true;
         UpdateDragPreviewSprite(definition, screenPosition);
     }
@@ -431,6 +671,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     /// </summary>
     private void HandleDragUpdated(Vector2 screenPosition)
     {
+        if (!buildUiVisible)
+            return;
+
         if (!dragActive)
             return;
 
@@ -442,6 +685,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     /// </summary>
     private void HandleDragEnded(Vector2 screenPosition)
     {
+        if (!buildUiVisible)
+            return;
+
         if (!dragActive)
             return;
 
@@ -454,6 +700,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     /// </summary>
     private void HandlePreviewUpdated(BuildPreviewData preview)
     {
+        if (!buildUiVisible)
+            return;
+
         if (!dragActive || dragPreviewImage == null)
             return;
 
@@ -465,6 +714,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     /// </summary>
     private void HandlePlacementResolved(BuildPlacementResult result)
     {
+        if (!buildUiVisible)
+            return;
+
         if (!result.Success)
         {
             Debug.LogWarning($"Turret placement failed: {result.FailureReason}", this);

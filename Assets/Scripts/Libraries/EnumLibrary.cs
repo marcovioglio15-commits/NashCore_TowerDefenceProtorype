@@ -19,3 +19,12 @@ public enum TurretFirePattern
     Consecutive,
     Cone
 }
+
+/// <summary>
+/// Describes high-level gameplay phases used to gate build and combat systems.
+/// </summary>
+public enum GamePhase
+{
+    Building,
+    Combat
+}

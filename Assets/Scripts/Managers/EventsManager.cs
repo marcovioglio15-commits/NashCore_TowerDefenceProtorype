@@ -23,10 +23,18 @@ public static class EventsManager
     public static Action<Vector2> BuildableDragEnded;
     public static Action<BuildPreviewData> BuildablePreviewUpdated;
     public static Action<BuildPlacementResult> BuildablePlacementResolved;
+    #endregion
+
+    #region Turret Possession
     public static Action<PooledTurret> TurretPerspectiveRequested;
     public static Action<PooledTurret> TurretFreeAimStarted;
     public static Action<PooledTurret> TurretFreeAimEnded;
     public static Action TurretFreeAimExitRequested;
+    #endregion
+
+    #region Game Phases
+    public static Action GamePhaseAdvanceRequested;
+    public static Action<GamePhase> GamePhaseChanged;
     #endregion
     #endregion
 
@@ -38,16 +46,27 @@ public static class EventsManager
     public static void InvokeTap(Vector2 screenPosition) => Tap?.Invoke(screenPosition);
     public static void InvokePinchIn(Vector2 delta)=> PinchIn?.Invoke(delta);
     public static void InvokePinchOut(Vector2 delta)=> PinchOut?.Invoke(delta);
+    #endregion
+
+    #region Buildables
     public static void InvokeBuildablesCatalogChanged(IReadOnlyList<TurretClassDefinition> catalog)=> BuildablesCatalogChanged?.Invoke(catalog);
     public static void InvokeBuildableDragBegan(TurretClassDefinition definition, Vector2 screenPosition)=> BuildableDragBegan?.Invoke(definition, screenPosition);
     public static void InvokeBuildableDragUpdated(Vector2 screenPosition)=> BuildableDragUpdated?.Invoke(screenPosition);
     public static void InvokeBuildableDragEnded(Vector2 screenPosition)=> BuildableDragEnded?.Invoke(screenPosition);
     public static void InvokeBuildablePreviewUpdated(BuildPreviewData preview)=> BuildablePreviewUpdated?.Invoke(preview);
     public static void InvokeBuildablePlacementResolved(BuildPlacementResult result)=> BuildablePlacementResolved?.Invoke(result);
+    #endregion
+
+    #region Turret Possession
     public static void InvokeTurretPerspectiveRequested(PooledTurret turret)=> TurretPerspectiveRequested?.Invoke(turret);
     public static void InvokeTurretFreeAimStarted(PooledTurret turret)=> TurretFreeAimStarted?.Invoke(turret);
     public static void InvokeTurretFreeAimEnded(PooledTurret turret)=> TurretFreeAimEnded?.Invoke(turret);
     public static void InvokeTurretFreeAimExitRequested()=> TurretFreeAimExitRequested?.Invoke();
+    #endregion
+
+    #region Game Phases
+    public static void InvokeGamePhaseAdvanceRequested()=> GamePhaseAdvanceRequested?.Invoke();
+    public static void InvokeGamePhaseChanged(GamePhase phase)=> GamePhaseChanged?.Invoke(phase);
     #endregion
     #endregion
 

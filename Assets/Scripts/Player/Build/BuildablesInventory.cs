@@ -44,6 +44,7 @@ namespace Player.Inventory
         private Vector3 previewWorldPosition;
         private Vector2Int previewCell;
         private string lastFailureReason = "Placement unavailable";
+        private bool buildPhaseActive = true;
         #endregion
         #endregion
 
@@ -67,6 +68,8 @@ namespace Player.Inventory
             EventsManager.BuildableDragBegan += HandleDragBegan;
             EventsManager.BuildableDragUpdated += HandleDragUpdated;
             EventsManager.BuildableDragEnded += HandleDragEnded;
+            EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+            SyncPhaseState();
             BroadcastCatalog();
         }
 
@@ -78,6 +81,7 @@ namespace Player.Inventory
             EventsManager.BuildableDragBegan -= HandleDragBegan;
             EventsManager.BuildableDragUpdated -= HandleDragUpdated;
             EventsManager.BuildableDragEnded -= HandleDragEnded;
+            EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
         }
 
         /// <summary>
@@ -101,6 +105,19 @@ namespace Player.Inventory
         {
             BroadcastCatalog();
         }
+
+        /// <summary>
+        /// Enables or disables placement actions based on the current phase.
+        /// </summary>
+        public void SetBuildPhaseActive(bool enabled)
+        {
+            if (buildPhaseActive == enabled)
+                return;
+
+            buildPhaseActive = enabled;
+            if (!buildPhaseActive)
+                ResetDragState();
+        }
         #endregion
 
         #region Event Handlers
@@ -109,6 +126,9 @@ namespace Player.Inventory
         /// </summary>
         private void HandleDragBegan(TurretClassDefinition definition, Vector2 screenPosition)
         {
+            if (!buildPhaseActive)
+                return;
+
             if (definition == null)
                 return;
 
@@ -125,6 +145,9 @@ namespace Player.Inventory
         /// </summary>
         private void HandleDragUpdated(Vector2 screenPosition)
         {
+            if (!buildPhaseActive)
+                return;
+
             if (!dragActive)
                 return;
 
@@ -136,11 +159,22 @@ namespace Player.Inventory
         /// </summary>
         private void HandleDragEnded(Vector2 screenPosition)
         {
+            if (!buildPhaseActive)
+                return;
+
             if (!dragActive)
                 return;
 
             TryCommitPlacement();
             ResetDragState();
+        }
+
+        /// <summary>
+        /// Updates internal flags when the global game phase changes.
+        /// </summary>
+        private void HandleGamePhaseChanged(GamePhase phase)
+        {
+            SetBuildPhaseActive(phase == GamePhase.Building);
         }
         #endregion
 
@@ -380,6 +414,18 @@ namespace Player.Inventory
             previewWorldPosition = Vector3.zero;
             lastFailureReason = string.Empty;
             RaisePreviewEvent();
+        }
+
+        /// <summary>
+        /// Syncs the runtime build gate with the current GameManager phase when available.
+        /// </summary>
+        private void SyncPhaseState()
+        {
+            GameManager manager = GameManager.Instance;
+            if (manager == null)
+                return;
+
+            SetBuildPhaseActive(manager.CurrentPhase == GamePhase.Building);
         }
         #endregion
 

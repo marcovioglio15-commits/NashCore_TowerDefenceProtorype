@@ -36,6 +36,7 @@ namespace Scriptables.Turrets
         private Vector3 lastAimPoint;
         private bool fireLockActive;
         private float fireLockTimer;
+        private bool phaseAutoEnabled = true;
         #endregion
         #endregion
 
@@ -64,6 +65,8 @@ namespace Scriptables.Turrets
             lastAimPoint = Vector3.zero;
             fireLockActive = false;
             fireLockTimer = 0f;
+            EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+            SyncPhaseState();
         }
 
         /// <summary>
@@ -76,6 +79,7 @@ namespace Scriptables.Turrets
 
             burstRoutine = null;
             activeTarget = null;
+            EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
         }
 
         /// <summary>
@@ -84,6 +88,9 @@ namespace Scriptables.Turrets
         private void Update()
         {
             if (pooledTurret == null || !pooledTurret.HasDefinition)
+                return;
+
+            if (!phaseAutoEnabled)
                 return;
 
             float deltaTime = Time.deltaTime;
@@ -382,6 +389,47 @@ namespace Scriptables.Turrets
                 return pooledTurret.transform.up;
 
             return Vector3.up;
+        }
+        #endregion
+
+        #region Phase Control
+        /// <summary>
+        /// Enables or disables automatic behaviour based on the active game phase.
+        /// </summary>
+        public void SetPhaseAutoState(bool enabled)
+        {
+            phaseAutoEnabled = enabled;
+            if (!phaseAutoEnabled)
+            {
+                if (burstRoutine != null)
+                    StopCoroutine(burstRoutine);
+
+                burstRoutine = null;
+                activeTarget = null;
+                fireLockActive = false;
+                fireLockTimer = 0f;
+                retargetTimer = 0f;
+            }
+        }
+
+        /// <summary>
+        /// Responds to global phase changes to align auto-fire availability.
+        /// </summary>
+        private void HandleGamePhaseChanged(GamePhase phase)
+        {
+            SetPhaseAutoState(phase == GamePhase.Combat);
+        }
+
+        /// <summary>
+        /// Syncs the initial phase state when coming online before events fire.
+        /// </summary>
+        private void SyncPhaseState()
+        {
+            GameManager manager = GameManager.Instance;
+            if (manager == null)
+                return;
+
+            SetPhaseAutoState(manager.CurrentPhase == GamePhase.Combat);
         }
         #endregion
 

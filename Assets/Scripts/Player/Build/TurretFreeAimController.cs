@@ -82,6 +82,7 @@ namespace Player.Build
         private bool uiArmed;
         private Transform[] yawFollowTargets;
         private Quaternion[] yawFollowBaseRotations;
+        private bool phaseAllowsFreeAim = true;
         #endregion
         #endregion
 
@@ -106,6 +107,8 @@ namespace Player.Build
             EventsManager.Swipe += HandleAngularSwipe;
             EventsManager.Tap += HandleTap;
             EventsManager.TurretFreeAimExitRequested += HandleExitRequested;
+            EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+            SyncPhasePermissions();
         }
 
         /// <summary>
@@ -118,6 +121,7 @@ namespace Player.Build
             EventsManager.Swipe -= HandleAngularSwipe;
             EventsManager.Tap -= HandleTap;
             EventsManager.TurretFreeAimExitRequested -= HandleExitRequested;
+            EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
             if (freeAimActive)
                 EventsManager.InvokeTurretFreeAimEnded(activeTurret);
             StopActiveCameraRoutine();
@@ -154,6 +158,9 @@ namespace Player.Build
                 return;
 
             if (freeAimActive)
+                return;
+
+            if (!phaseAllowsFreeAim)
                 return;
 
             BeginFreeAim(turret);
@@ -204,6 +211,16 @@ namespace Player.Build
                 return;
 
             ExitFreeAim();
+        }
+
+        /// <summary>
+        /// Exits free-aim when the game enters the build phase.
+        /// </summary>
+        private void HandleGamePhaseChanged(GamePhase phase)
+        {
+            phaseAllowsFreeAim = phase == GamePhase.Combat;
+            if (!phaseAllowsFreeAim && freeAimActive)
+                ExitFreeAim();
         }
         #endregion
 
@@ -845,6 +862,20 @@ namespace Player.Build
             Gizmos.color = new Color(0.2f, 0.85f, 1f, 0.35f);
             Gizmos.DrawWireSphere(offsetPosition, 0.15f);
             Gizmos.DrawLine(anchor.position, offsetPosition);
+        }
+
+        /// <summary>
+        /// Aligns free-aim permissions with the current phase when enabling the controller.
+        /// </summary>
+        private void SyncPhasePermissions()
+        {
+            GameManager manager = GameManager.Instance;
+            if (manager == null)
+                return;
+
+            phaseAllowsFreeAim = manager.CurrentPhase == GamePhase.Combat;
+            if (!phaseAllowsFreeAim && freeAimActive)
+                ExitFreeAim();
         }
         #endregion
         #endregion
