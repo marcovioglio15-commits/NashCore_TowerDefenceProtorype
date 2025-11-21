@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Grid
@@ -7,7 +8,7 @@ namespace Grid
     /// <summary>
     /// Manages a 3D gameplay grid with offset-based origin, bitmask node states and layered debug gizmos.
     /// </summary>
-    public class Grid3D : MonoBehaviour
+    public class Grid3D : Singleton<Grid3D>
     {
         #region Serialized Fields
 
@@ -86,7 +87,7 @@ namespace Grid
         #region Runtime
 
         // Flat array of nodes.
-        [SerializeField] private GridNode[] graph;
+        private GridNode[] graph;
         private bool gridInitialized;
 
         #endregion
@@ -112,8 +113,9 @@ namespace Grid
         /// <summary>
         /// Ensures grid is initialized before gameplay.
         /// </summary>
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             InitializeGrid();
         }
 
@@ -175,21 +177,17 @@ namespace Grid
                     if (x > 0)
                     {
                         GridNode left = graph[ToIndex(x - 1, z)];
-                        if (left != null)
-                        {
-                            int weight = ResolveEdgeWeight(node, left);
-                            node.AddEdge(left, weight);
-                        }
+
+                        if (left != null && left.Is(NodeState.Walkable))
+                            node.AddEdge(left);
                     }
 
                     if (z > 0)
                     {
                         GridNode down = graph[ToIndex(x, z - 1)];
-                        if (down != null)
-                        {
-                            int weight = ResolveEdgeWeight(node, down);
-                            node.AddEdge(down, weight);
-                        }
+
+                        if (down != null && down.Is(NodeState.Walkable))
+                            node.AddEdge(down);
                     }
                 }
             }
@@ -198,6 +196,40 @@ namespace Grid
         }
 
         #endregion
+
+        public List<GridNode> GetPath(in GridNode start, in GridNode end)
+        {
+            if (start == null || end == null || !graph.Contains(start) || !graph.Contains(end) || start == end)
+            {
+                Debug.LogError(start == null ? "Given start node cannot be null." : end == null ? "Given end node cannot be null." : !graph.Contains(start) ? "The given start node is not present in the graph." : !graph.Contains(end) ? "The given end node is not present in the graph." : "Given nodes cannot be equal.");
+                return null;
+            }
+
+            Queue<GridNode> queue = new Queue<GridNode>();
+            List<GridNode> visitedNodes = new List<GridNode>();
+            List<GridNode> path = new List<GridNode>();
+            queue.Enqueue(start);
+            List<GridEdge> edges;
+            GridNode current;
+            GridNode nodeFlag;
+
+            while (queue.Count > 0)
+            {
+                current = queue.Dequeue();
+                edges = current.GetEdges();
+                for (int i = 0; i < edges.Count; i++)
+                {
+                    nodeFlag = edges[i].GetOppositeNode(current);
+                    if (nodeFlag != null && !visitedNodes.Contains(nodeFlag))
+                    {
+                        queue.Enqueue(nodeFlag);
+                        visitedNodes.Add(nodeFlag);
+                    }
+                }
+            }
+            return path;
+        }
+
 
         #region Helpers
 
@@ -269,19 +301,6 @@ namespace Grid
 
             return state;
         }
-
-        /// <summary>
-        /// Computes an edge weight honoring walkability across both nodes.
-        /// </summary>
-        private int ResolveEdgeWeight(GridNode origin, GridNode destination)
-        {
-            if (origin == null || destination == null)
-                return int.MaxValue;
-
-            bool traversable = origin.Is(NodeState.Walkable) && destination.Is(NodeState.Walkable);
-            return traversable ? 1 : int.MaxValue;
-        }
-        
 
         /// <summary>
         /// Returns world coordinates for the provided grid coordinate.
