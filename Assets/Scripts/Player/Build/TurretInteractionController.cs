@@ -248,8 +248,8 @@ namespace Player.Build
                 return;
 
             dragActive = false;
-            EventsManager.InvokeBuildableDragEnded(currentPosition);
             awaitingPlacementResolution = true;
+            EventsManager.InvokeBuildableDragEnded(currentPosition);
             trackedFinger = null;
         }
         #endregion
