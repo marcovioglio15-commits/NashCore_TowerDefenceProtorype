@@ -23,6 +23,7 @@ public static class EventsManager
     public static Action<Vector2> BuildableDragEnded;
     public static Action<BuildPreviewData> BuildablePreviewUpdated;
     public static Action<BuildPlacementResult> BuildablePlacementResolved;
+    public static Action<TurretClassDefinition> BuildableRelocationBegan;
     #endregion
 
     #region Turret Possession
@@ -35,6 +36,8 @@ public static class EventsManager
     #region Game Phases
     public static Action GamePhaseAdvanceRequested;
     public static Action<GamePhase> GamePhaseChanged;
+    public static Action<int> PlayerGoldChanged;
+    public static Action<int> PlayerGoldEarned;
     #endregion
     #endregion
 
@@ -55,6 +58,7 @@ public static class EventsManager
     public static void InvokeBuildableDragEnded(Vector2 screenPosition)=> BuildableDragEnded?.Invoke(screenPosition);
     public static void InvokeBuildablePreviewUpdated(BuildPreviewData preview)=> BuildablePreviewUpdated?.Invoke(preview);
     public static void InvokeBuildablePlacementResolved(BuildPlacementResult result)=> BuildablePlacementResolved?.Invoke(result);
+    public static void InvokeBuildableRelocationBegan(TurretClassDefinition definition)=> BuildableRelocationBegan?.Invoke(definition);
     #endregion
 
     #region Turret Possession
@@ -67,6 +71,8 @@ public static class EventsManager
     #region Game Phases
     public static void InvokeGamePhaseAdvanceRequested()=> GamePhaseAdvanceRequested?.Invoke();
     public static void InvokeGamePhaseChanged(GamePhase phase)=> GamePhaseChanged?.Invoke(phase);
+    public static void InvokePlayerGoldChanged(int gold)=> PlayerGoldChanged?.Invoke(gold);
+    public static void InvokePlayerGoldEarned(int amount)=> PlayerGoldEarned?.Invoke(amount);
     #endregion
     #endregion
 

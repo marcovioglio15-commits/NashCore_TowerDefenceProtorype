@@ -89,6 +89,10 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     [SerializeField] private string buildingPhaseLabel = "Building Phase";
     [Tooltip("Text displayed when entering the combat phase.")]
     [SerializeField] private string combatPhaseLabel = "Combat Phase";
+
+    [Header("Economy")]
+    [Tooltip("Label displaying the player's current gold balance.")]
+    [SerializeField] private TextMeshProUGUI goldLabel;
     #endregion
 
     #region Runtime
@@ -125,6 +129,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimStarted += HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded += HandleFreeAimEnded;
         EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+        EventsManager.PlayerGoldChanged += HandlePlayerGoldChanged;
         if (buildablesInventory != null)
             buildablesInventory.RequestCatalogBroadcast();
 
@@ -137,6 +142,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EnsureExitHandler();
         AttachPhaseButtonListener();
         SyncPhaseUiState();
+        SyncGoldLabel();
     }
 
     /// <summary>
@@ -153,6 +159,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimStarted -= HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded -= HandleFreeAimEnded;
         EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
+        EventsManager.PlayerGoldChanged -= HandlePlayerGoldChanged;
         DetachPhaseButtonListener();
         HideFreeAimUi();
         HideReticle();
@@ -435,6 +442,14 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     }
 
     /// <summary>
+    /// Updates the gold label when the player's balance changes.
+    /// </summary>
+    private void HandlePlayerGoldChanged(int gold)
+    {
+        UpdateGoldLabel(gold);
+    }
+
+    /// <summary>
     /// Ensures build UI and free-aim UI follow the active phase rules.
     /// </summary>
     private void ApplyPhaseUiState(GamePhase phase, bool animateBanner)
@@ -619,6 +634,29 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
 
         ApplyPhaseUiState(manager.CurrentPhase, false);
         UpdatePhaseToggleInteractable();
+    }
+
+    /// <summary>
+    /// Requests the current balance to populate the gold label at startup.
+    /// </summary>
+    private void SyncGoldLabel()
+    {
+        PlayerResourcesManager resources = PlayerResourcesManager.Instance;
+        if (resources == null)
+            return;
+
+        UpdateGoldLabel(resources.CurrentGold);
+    }
+
+    /// <summary>
+    /// Writes the provided gold amount into the HUD label.
+    /// </summary>
+    private void UpdateGoldLabel(int gold)
+    {
+        if (goldLabel == null)
+            return;
+
+        goldLabel.text = $"CURRENT GOLD : {gold}";
     }
     #endregion
 

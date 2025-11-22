@@ -24,6 +24,9 @@ namespace Player.Inventory
         [SerializeField] private float snapRadius = 1.5f;
         [Tooltip("Additional cells scanned around the pointer when resolving a snap target.")]
         [SerializeField] private int snapCellExpansion = 1;
+        [Header("Economy")]
+        [Tooltip("Resource tracker used to validate and charge turret build costs.")]
+        [SerializeField] private PlayerResourcesManager playerResources;
 
         [Header("Debug")]
         [Tooltip("Visual color used for valid previews.")] 
@@ -45,6 +48,7 @@ namespace Player.Inventory
         private Vector2Int previewCell;
         private string lastFailureReason = "Placement unavailable";
         private bool buildPhaseActive = true;
+        private bool relocatingExisting;
         #endregion
         #endregion
 
@@ -58,6 +62,9 @@ namespace Player.Inventory
             placementService = GetComponent<TurretPlacementLogic>();
             if (placementService != null)
                 grid = placementService.Grid;
+
+            if (playerResources == null)
+                playerResources = PlayerResourcesManager.Instance;
         }
 
         /// <summary>
@@ -69,6 +76,7 @@ namespace Player.Inventory
             EventsManager.BuildableDragUpdated += HandleDragUpdated;
             EventsManager.BuildableDragEnded += HandleDragEnded;
             EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+            EventsManager.BuildableRelocationBegan += HandleRelocationBegan;
             SyncPhaseState();
             BroadcastCatalog();
         }
@@ -82,6 +90,7 @@ namespace Player.Inventory
             EventsManager.BuildableDragUpdated -= HandleDragUpdated;
             EventsManager.BuildableDragEnded -= HandleDragEnded;
             EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
+            EventsManager.BuildableRelocationBegan -= HandleRelocationBegan;
         }
 
         /// <summary>
@@ -175,6 +184,14 @@ namespace Player.Inventory
         private void HandleGamePhaseChanged(GamePhase phase)
         {
             SetBuildPhaseActive(phase == GamePhase.Building);
+        }
+
+        /// <summary>
+        /// Marks the next placement as a relocation to skip resource charging.
+        /// </summary>
+        private void HandleRelocationBegan(TurretClassDefinition definition)
+        {
+            relocatingExisting = true;
         }
         #endregion
 
@@ -354,6 +371,13 @@ namespace Player.Inventory
                 return;
             }
 
+            if (!relocatingExisting && !HasSufficientGold(activeDefinition))
+            {
+                BuildPlacementResult fail = new BuildPlacementResult(activeDefinition, false, "Insufficient gold", previewWorldPosition, previewCell);
+                EventsManager.InvokeBuildablePlacementResolved(fail);
+                return;
+            }
+
             Vector3 validationPosition;
             string validationMessage;
             Quaternion rotation = ResolvePlacementRotation(activeDefinition);
@@ -369,6 +393,9 @@ namespace Player.Inventory
             string resultMessage = success ? string.Empty : "Pool returned null turret";
             BuildPlacementResult result = new BuildPlacementResult(activeDefinition, success, resultMessage, validationPosition, previewCell);
             EventsManager.InvokeBuildablePlacementResolved(result);
+
+            if (success && !relocatingExisting)
+                SpendGold(activeDefinition);
         }
 
         /// <summary>
@@ -413,6 +440,7 @@ namespace Player.Inventory
             previewCell = Vector2Int.zero;
             previewWorldPosition = Vector3.zero;
             lastFailureReason = string.Empty;
+            relocatingExisting = false;
             RaisePreviewEvent();
         }
 
@@ -426,6 +454,33 @@ namespace Player.Inventory
                 return;
 
             SetBuildPhaseActive(manager.CurrentPhase == GamePhase.Building);
+        }
+
+        /// <summary>
+        /// Returns true when the player has enough gold to place the provided definition.
+        /// </summary>
+        private bool HasSufficientGold(TurretClassDefinition definition)
+        {
+            if (definition == null)
+                return false;
+
+            if (playerResources == null)
+                return true;
+
+            int cost = Mathf.Max(0, definition.Economy.BuildCost);
+            return playerResources.CanAfford(cost);
+        }
+
+        /// <summary>
+        /// Deducts the build cost for the provided definition.
+        /// </summary>
+        private void SpendGold(TurretClassDefinition definition)
+        {
+            if (playerResources == null || definition == null)
+                return;
+
+            int cost = Mathf.Max(0, definition.Economy.BuildCost);
+            playerResources.TrySpend(cost);
         }
         #endregion
 

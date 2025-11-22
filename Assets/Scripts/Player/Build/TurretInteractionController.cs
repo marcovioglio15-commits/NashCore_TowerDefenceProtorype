@@ -300,6 +300,7 @@ namespace Player.Build
 
             dragActive = true;
             lastDragPosition = trackedTouch.screenPosition;
+            EventsManager.InvokeBuildableRelocationBegan(cachedDefinition);
             EventsManager.InvokeBuildableDragBegan(cachedDefinition, trackedTouch.screenPosition);
             trackedTurret = null;
             HideHoldIndicator();

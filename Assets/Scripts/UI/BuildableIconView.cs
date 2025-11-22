@@ -19,6 +19,8 @@ namespace Managers.UI
         [SerializeField] private TextMeshProUGUI nameLabel;
         [Tooltip("Canvas group toggled to indicate drag state.")]
         [SerializeField] private CanvasGroup canvasGroup;
+        [Tooltip("Label showing the gold cost to build this turret.")]
+        [SerializeField] private TextMeshProUGUI costLabel;
         #endregion
 
         #region Runtime
@@ -40,6 +42,9 @@ namespace Managers.UI
 
             if (nameLabel != null)
                 nameLabel.text = definition != null ? definition.DisplayName : string.Empty;
+
+            if (costLabel != null)
+                costLabel.text = definition != null ? $"COST : {definition.Economy.BuildCost}" : string.Empty;
 
             if (canvasGroup != null)
                 canvasGroup.alpha = 1f;
