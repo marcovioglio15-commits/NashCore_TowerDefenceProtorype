@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/MainMenuScene.unity
+    guid: f66d2244a49f8784995a662c588e8da2
+  - enabled: 1
     path: Assets/Scenes/TestingScenes/TS_TowersPositioning.unity
     guid: 787ac04e5762c234d902c683e36eddd6
   m_configObjects:

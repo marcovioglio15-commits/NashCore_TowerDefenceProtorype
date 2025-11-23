@@ -5762,12 +5762,16 @@ PrefabInstance:
       value: 0.85
       objectReference: {fileID: 0}
     - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
+      propertyPath: pitchInputDeadZone
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
       propertyPath: cameraLocalOffset.z
       value: -1.5
       objectReference: {fileID: 0}
     - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
       propertyPath: fallbackYawClampDegrees
-      value: 360
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
       propertyPath: freeAimProjectileOffset.x
