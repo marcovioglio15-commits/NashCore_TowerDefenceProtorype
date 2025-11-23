@@ -1,0 +1,333 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+namespace Grid.Editor
+{
+    /// <summary>
+    /// Custom inspector that paints walkable, buildable, goal, and spawn nodes directly onto a button-based grid preview.
+    /// </summary>
+    [CustomEditor(typeof(Grid3D))]
+    public class Grid3DEditor : UnityEditor.Editor
+    {
+        #region Nested Types
+        /// <summary>
+        /// Paint mode applied to nodes when clicking inside the grid preview.
+        /// </summary>
+        private enum NodePaintMode
+        {
+            None,
+            Walkable,
+            Buildable,
+            EnemyGoal,
+            EnemySpawn
+        }
+        #endregion
+
+        #region Serialized Properties
+        private SerializedProperty gridSizeXProperty;
+        private SerializedProperty gridSizeZProperty;
+        private SerializedProperty originOffsetProperty;
+        private SerializedProperty cellSizeProperty;
+        private SerializedProperty walkableNodesProperty;
+        private SerializedProperty buildableNodesProperty;
+        private SerializedProperty enemyGoalCellsProperty;
+        private SerializedProperty enemySpawnCellsProperty;
+        private SerializedProperty walkableColorProperty;
+        private SerializedProperty buildableColorProperty;
+        private SerializedProperty goalColorProperty;
+        private SerializedProperty spawnColorProperty;
+        private SerializedProperty disabledColorProperty;
+        private SerializedProperty drawGridGizmosProperty;
+        private SerializedProperty drawNodeCoordinatesProperty;
+        private SerializedProperty wireColorProperty;
+        #endregion
+
+        #region Runtime State
+        private NodePaintMode activePaintMode = NodePaintMode.Walkable;
+        private const float ButtonSize = 28f;
+        #endregion
+
+        #region Methods
+        #region Unity
+        /// <summary>
+        /// Caches serialized property references for faster inspector drawing.
+        /// </summary>
+        private void OnEnable()
+        {
+            gridSizeXProperty = serializedObject.FindProperty("gridSizeX");
+            gridSizeZProperty = serializedObject.FindProperty("gridSizeZ");
+            originOffsetProperty = serializedObject.FindProperty("originOffset");
+            cellSizeProperty = serializedObject.FindProperty("cellSize");
+            walkableNodesProperty = serializedObject.FindProperty("walkableNodes");
+            buildableNodesProperty = serializedObject.FindProperty("buildableNodes");
+            enemyGoalCellsProperty = serializedObject.FindProperty("enemyGoalCells");
+            enemySpawnCellsProperty = serializedObject.FindProperty("enemySpawnCells");
+            walkableColorProperty = serializedObject.FindProperty("walkableColor");
+            buildableColorProperty = serializedObject.FindProperty("buildableColor");
+            goalColorProperty = serializedObject.FindProperty("goalColor");
+            spawnColorProperty = serializedObject.FindProperty("spawnColor");
+            disabledColorProperty = serializedObject.FindProperty("disabledColor");
+            drawGridGizmosProperty = serializedObject.FindProperty("drawGridGizmos");
+            drawNodeCoordinatesProperty = serializedObject.FindProperty("drawNodeCoordinates");
+            wireColorProperty = serializedObject.FindProperty("wireColor");
+        }
+
+        /// <summary>
+        /// Draws grid settings, the active paint selector, and the interactive grid preview.
+        /// </summary>
+        public override void OnInspectorGUI()
+        {
+            serializedObject.Update();
+
+            DrawGridSettings();
+            DrawStateArrays();
+            DrawPaintSelector();
+            DrawGridPreview();
+            DrawColorAndGizmoControls();
+
+            serializedObject.ApplyModifiedProperties();
+        }
+        #endregion
+
+        #region Drawing
+        /// <summary>
+        /// Renders grid dimension and transform settings.
+        /// </summary>
+        private void DrawGridSettings()
+        {
+            EditorGUILayout.LabelField("Grid Settings", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(gridSizeXProperty);
+            EditorGUILayout.PropertyField(gridSizeZProperty);
+            EditorGUILayout.PropertyField(originOffsetProperty);
+            EditorGUILayout.PropertyField(cellSizeProperty);
+            EditorGUILayout.Space();
+        }
+
+        /// <summary>
+        /// Shows the underlying node lists for visibility while editing.
+        /// </summary>
+        private void DrawStateArrays()
+        {
+            EditorGUILayout.LabelField("Node Collections", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(walkableNodesProperty, true);
+            EditorGUILayout.PropertyField(buildableNodesProperty, true);
+            EditorGUILayout.PropertyField(enemyGoalCellsProperty, true);
+            EditorGUILayout.PropertyField(enemySpawnCellsProperty, true);
+            EditorGUILayout.Space();
+        }
+
+        /// <summary>
+        /// Displays active paint mode and color legend controls.
+        /// </summary>
+        private void DrawPaintSelector()
+        {
+            EditorGUILayout.LabelField("Grid Painter", EditorStyles.boldLabel);
+            activePaintMode = (NodePaintMode)EditorGUILayout.EnumPopup("Active Paint Mode", activePaintMode);
+            EditorGUILayout.Space();
+        }
+
+        /// <summary>
+        /// Draws the interactive grid matching configured dimensions.
+        /// </summary>
+        private void DrawGridPreview()
+        {
+            Grid3D gridTarget = target as Grid3D;
+            if (gridTarget == null)
+                return;
+
+            int sizeX = Mathf.Max(1, gridSizeXProperty.intValue);
+            int sizeZ = Mathf.Max(1, gridSizeZProperty.intValue);
+
+            HashSet<Vector2Int> walkableSet = BuildSetFromProperty(walkableNodesProperty);
+            HashSet<Vector2Int> buildableSet = BuildSetFromProperty(buildableNodesProperty);
+            HashSet<Vector2Int> goalSet = BuildSetFromProperty(enemyGoalCellsProperty);
+            HashSet<Vector2Int> spawnSet = BuildSetFromProperty(enemySpawnCellsProperty);
+
+            Color originalColor = GUI.backgroundColor;
+            EditorGUILayout.LabelField("Grid Preview", EditorStyles.boldLabel);
+
+            for (int z = sizeZ - 1; z >= 0; z--)
+            {
+                EditorGUILayout.BeginHorizontal();
+                for (int x = 0; x < sizeX; x++)
+                {
+                    Vector2Int coords = new Vector2Int(x, z);
+                    bool isWalkable = walkableSet.Contains(coords);
+                    bool isBuildable = buildableSet.Contains(coords);
+                    bool isGoal = goalSet.Contains(coords);
+                    bool isSpawn = spawnSet.Contains(coords);
+                    GUIContent label = new GUIContent(BuildCellLabel(isWalkable, isBuildable, isGoal, isSpawn, x, z));
+                    GUIStyle style = new GUIStyle(GUI.skin.button);
+                    style.alignment = TextAnchor.MiddleCenter;
+                    style.fontSize = 10;
+                    GUI.backgroundColor = ResolveCellColor(isWalkable, isBuildable, isGoal, isSpawn);
+
+                    if (GUILayout.Button(label, style, GUILayout.Width(ButtonSize), GUILayout.Height(ButtonSize)))
+                    {
+                        ApplyPaint(coords, walkableSet, buildableSet, goalSet, spawnSet);
+                        WriteSetToProperty(walkableNodesProperty, walkableSet);
+                        WriteSetToProperty(buildableNodesProperty, buildableSet);
+                        WriteSetToProperty(enemyGoalCellsProperty, goalSet);
+                        WriteSetToProperty(enemySpawnCellsProperty, spawnSet);
+                        EditorUtility.SetDirty(gridTarget);
+                    }
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            GUI.backgroundColor = originalColor;
+        }
+
+        /// <summary>
+        /// Shows debug colors and gizmo toggles after the grid for clarity.
+        /// </summary>
+        private void DrawColorAndGizmoControls()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("State Colors", EditorStyles.miniBoldLabel);
+            EditorGUILayout.PropertyField(walkableColorProperty);
+            EditorGUILayout.PropertyField(buildableColorProperty);
+            EditorGUILayout.PropertyField(goalColorProperty);
+            EditorGUILayout.PropertyField(spawnColorProperty);
+            EditorGUILayout.PropertyField(disabledColorProperty);
+            EditorGUILayout.PropertyField(wireColorProperty);
+            EditorGUILayout.PropertyField(drawGridGizmosProperty);
+            EditorGUILayout.PropertyField(drawNodeCoordinatesProperty);
+            EditorGUILayout.Space();
+        }
+        #endregion
+
+        #region Helpers
+        /// <summary>
+        /// Builds a label showing active states and coordinates.
+        /// </summary>
+        private string BuildCellLabel(bool isWalkable, bool isBuildable, bool isGoal, bool isSpawn, int x, int z)
+        {
+            string flags = string.Empty;
+            if (isWalkable)
+                flags += "W";
+            if (isBuildable)
+                flags += "B";
+            if (isGoal)
+                flags += "G";
+            if (isSpawn)
+                flags += "S";
+
+            if (string.IsNullOrEmpty(flags))
+                flags = "-";
+
+            return flags + System.Environment.NewLine + x.ToString() + "," + z.ToString();
+        }
+
+        /// <summary>
+        /// Converts a serialized Vector2Int array into a hash set for faster lookups.
+        /// </summary>
+        private HashSet<Vector2Int> BuildSetFromProperty(SerializedProperty property)
+        {
+            HashSet<Vector2Int> set = new HashSet<Vector2Int>();
+            if (property == null || !property.isArray)
+                return set;
+
+            int count = property.arraySize;
+            for (int i = 0; i < count; i++)
+            {
+                SerializedProperty element = property.GetArrayElementAtIndex(i);
+                Vector2Int coords = element.vector2IntValue;
+                set.Add(coords);
+            }
+
+            return set;
+        }
+
+        /// <summary>
+        /// Writes a hash set of coordinates back into a serialized array property.
+        /// </summary>
+        private void WriteSetToProperty(SerializedProperty property, HashSet<Vector2Int> coords)
+        {
+            if (property == null)
+                return;
+
+            property.ClearArray();
+            int index = 0;
+            foreach (Vector2Int coord in coords)
+            {
+                property.InsertArrayElementAtIndex(index);
+                SerializedProperty element = property.GetArrayElementAtIndex(index);
+                element.vector2IntValue = coord;
+                index++;
+            }
+        }
+
+        /// <summary>
+        /// Applies the current paint mode to the clicked coordinate.
+        /// </summary>
+        private void ApplyPaint(Vector2Int coords, HashSet<Vector2Int> walkableSet, HashSet<Vector2Int> buildableSet, HashSet<Vector2Int> goalSet, HashSet<Vector2Int> spawnSet)
+        {
+            switch (activePaintMode)
+            {
+                case NodePaintMode.None:
+                    walkableSet.Remove(coords);
+                    buildableSet.Remove(coords);
+                    goalSet.Remove(coords);
+                    spawnSet.Remove(coords);
+                    break;
+                case NodePaintMode.Walkable:
+                    walkableSet.Add(coords);
+                    break;
+                case NodePaintMode.Buildable:
+                    buildableSet.Add(coords);
+                    break;
+                case NodePaintMode.EnemyGoal:
+                    goalSet.Add(coords);
+                    break;
+                case NodePaintMode.EnemySpawn:
+                    spawnSet.Add(coords);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the background color for a cell based on its current flags.
+        /// </summary>
+        private Color ResolveCellColor(bool isWalkable, bool isBuildable, bool isGoal, bool isSpawn)
+        {
+            Color sum = Color.black;
+            int contributions = 0;
+
+            if (isWalkable && walkableColorProperty != null)
+            {
+                sum += walkableColorProperty.colorValue;
+                contributions++;
+            }
+
+            if (isBuildable && buildableColorProperty != null)
+            {
+                sum += buildableColorProperty.colorValue;
+                contributions++;
+            }
+
+            if (isGoal && goalColorProperty != null)
+            {
+                sum += goalColorProperty.colorValue;
+                contributions++;
+            }
+
+            if (isSpawn && spawnColorProperty != null)
+            {
+                sum += spawnColorProperty.colorValue;
+                contributions++;
+            }
+
+            if (contributions == 0)
+                return disabledColorProperty != null ? disabledColorProperty.colorValue : Color.gray;
+
+            float divisor = 1f / contributions;
+            Color averaged = new Color(sum.r * divisor, sum.g * divisor, sum.b * divisor, 1f);
+            return averaged;
+        }
+        #endregion
+        #endregion
+    }
+}

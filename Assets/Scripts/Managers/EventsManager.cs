@@ -38,6 +38,7 @@ public static class EventsManager
     public static Action<GamePhase> GamePhaseChanged;
     public static Action<int> PlayerGoldChanged;
     public static Action<int> PlayerGoldEarned;
+    public static Action<int, int> PlayerGoldInsufficient;
     #endregion
     #endregion
 
@@ -73,6 +74,7 @@ public static class EventsManager
     public static void InvokeGamePhaseChanged(GamePhase phase)=> GamePhaseChanged?.Invoke(phase);
     public static void InvokePlayerGoldChanged(int gold)=> PlayerGoldChanged?.Invoke(gold);
     public static void InvokePlayerGoldEarned(int amount)=> PlayerGoldEarned?.Invoke(amount);
+    public static void InvokePlayerGoldInsufficient(int currentGold, int requiredGold)=> PlayerGoldInsufficient?.Invoke(currentGold, requiredGold);
     #endregion
     #endregion
 

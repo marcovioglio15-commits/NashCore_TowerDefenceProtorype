@@ -9,7 +9,7 @@ namespace Managers.UI
     /// <summary>
     /// UI widget responsible for exposing a turret entry inside the build bar and forwarding drag gestures.
     /// </summary>
-    public class BuildableIconView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class BuildableIconView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler
     {
         #region Variables And Properties
         #region Serialized Fields
@@ -51,6 +51,34 @@ namespace Managers.UI
         }
         #endregion
 
+        #region Economy
+        /// <summary>
+        /// Returns true when the player can afford this turret or no resource tracker is available.
+        /// </summary>
+        private bool HasAvailableGold()
+        {
+            PlayerResourcesManager resources = PlayerResourcesManager.Instance;
+            if (resources == null || definition == null)
+                return true;
+
+            int cost = Mathf.Max(0, definition.Economy.BuildCost);
+            return resources.CanAfford(cost);
+        }
+
+        /// <summary>
+        /// Emits a global notification when the drag cannot start due to insufficient funds.
+        /// </summary>
+        private void NotifyInsufficientGold()
+        {
+            int cost = definition != null ? Mathf.Max(0, definition.Economy.BuildCost) : 0;
+            PlayerResourcesManager resources = PlayerResourcesManager.Instance;
+            int currentGold = resources != null ? resources.CurrentGold : 0;
+            EventsManager.InvokePlayerGoldInsufficient(currentGold, cost);
+            if (canvasGroup != null)
+                canvasGroup.alpha = 1f;
+        }
+        #endregion
+
         #region EventSystem
         /// <summary>
         /// Invoked by the event system when the drag gesture begins.
@@ -59,6 +87,12 @@ namespace Managers.UI
         {
             if (definition == null)
                 return;
+
+            if (!HasAvailableGold())
+            {
+                NotifyInsufficientGold();
+                return;
+            }
 
             dragActive = true;
             if (canvasGroup != null)
@@ -76,6 +110,17 @@ namespace Managers.UI
                 return;
 
             EventsManager.InvokeBuildableDragUpdated(eventData.position);
+        }
+
+        /// <summary>
+        /// Invoked when the icon is pressed without starting a drag to surface affordability feedback.
+        /// </summary>
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (HasAvailableGold())
+                return;
+
+            NotifyInsufficientGold();
         }
 
         /// <summary>

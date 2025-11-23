@@ -40,11 +40,11 @@ namespace Player.Build
         [SerializeField] private float yawSensitivity = 0.35f;
         [Tooltip("Degrees of pitch applied per pixel of vertical drag or swipe.")]
         [SerializeField] private float pitchSensitivity = 0.35f;
-        [Tooltip("Maximum upward pitch offset allowed relative to the starting orientation.")]
+        [Tooltip("Maximum upward pitch offset allowed relative to the starting orientation; zero disables the clamp.")]
         [SerializeField] private float pitchUpClampDegrees = 55f;
-        [Tooltip("Maximum downward pitch offset allowed relative to the starting orientation.")]
+        [Tooltip("Maximum downward pitch offset allowed relative to the starting orientation; zero disables the clamp.")]
         [SerializeField] private float pitchDownClampDegrees = 35f;
-        [Tooltip("Maximum yaw offset allowed while possessed, relative to the starting orientation.")] 
+        [Tooltip("Maximum yaw offset allowed while possessed, relative to the starting orientation; zero disables the clamp.")] 
         [SerializeField] private float fallbackYawClampDegrees = 110f;
 
         [Header("Firing")]
@@ -598,8 +598,8 @@ namespace Player.Build
         /// </summary>
         private Vector2 ResolvePitchClamp()
         {
-            float up = Mathf.Max(1f, pitchUpClampDegrees);
-            float down = Mathf.Max(1f, pitchDownClampDegrees);
+            float up = pitchUpClampDegrees <= 0f ? float.PositiveInfinity : Mathf.Max(0f, pitchUpClampDegrees);
+            float down = pitchDownClampDegrees <= 0f ? float.PositiveInfinity : Mathf.Max(0f, pitchDownClampDegrees);
             return new Vector2(up, down);
         }
 

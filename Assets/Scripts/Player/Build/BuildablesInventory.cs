@@ -144,6 +144,12 @@ namespace Player.Inventory
             if (!buildableTurrets.Contains(definition))
                 return;
 
+            if (!relocatingExisting && !HasSufficientGold(definition))
+            {
+                BroadcastInsufficientGold(definition);
+                return;
+            }
+
             activeDefinition = definition;
             dragActive = true;
             EvaluatePreview(screenPosition);
@@ -373,6 +379,7 @@ namespace Player.Inventory
 
             if (!relocatingExisting && !HasSufficientGold(activeDefinition))
             {
+                BroadcastInsufficientGold(activeDefinition);
                 BuildPlacementResult fail = new BuildPlacementResult(activeDefinition, false, "Insufficient gold", previewWorldPosition, previewCell);
                 EventsManager.InvokeBuildablePlacementResolved(fail);
                 return;
@@ -481,6 +488,16 @@ namespace Player.Inventory
 
             int cost = Mathf.Max(0, definition.Economy.BuildCost);
             playerResources.TrySpend(cost);
+        }
+
+        /// <summary>
+        /// Triggers an insufficient gold notification for UI feedback.
+        /// </summary>
+        private void BroadcastInsufficientGold(TurretClassDefinition definition)
+        {
+            int cost = definition != null ? Mathf.Max(0, definition.Economy.BuildCost) : 0;
+            int currentGold = playerResources != null ? playerResources.CurrentGold : 0;
+            EventsManager.InvokePlayerGoldInsufficient(currentGold, cost);
         }
         #endregion
 

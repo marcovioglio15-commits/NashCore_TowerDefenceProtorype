@@ -90,9 +90,16 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     [Tooltip("Text displayed when entering the combat phase.")]
     [SerializeField] private string combatPhaseLabel = "Combat Phase";
 
-    [Header("Economy")]
     [Tooltip("Label displaying the player's current gold balance.")]
+    [Header("Economy")]
     [SerializeField] private TextMeshProUGUI goldLabel;
+    [Tooltip("Color applied to the gold label when funds are insufficient.")]
+    [Header("Economy Feedback")]
+    [SerializeField] private Color goldInsufficientColor = new Color(0.9f, 0.25f, 0.25f, 1f);
+    [Tooltip("Seconds spent pulsing the gold label on insufficient funds.")]
+    [SerializeField] private float goldInsufficientPulseSeconds = 0.4f;
+    [Tooltip("Curve controlling the intensity of the gold pulse feedback.")]
+    [SerializeField] private AnimationCurve goldInsufficientCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
     #endregion
 
     #region Runtime
@@ -109,6 +116,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     private bool freeAimUiVisible;
     private Coroutine phaseBannerRoutine;
     private bool buildUiVisible = true;
+    private Coroutine goldPulseRoutine;
+    private Color goldLabelBaseColor = Color.white;
     #endregion
     #endregion
 
@@ -130,6 +139,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimEnded += HandleFreeAimEnded;
         EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
         EventsManager.PlayerGoldChanged += HandlePlayerGoldChanged;
+        EventsManager.PlayerGoldInsufficient += HandlePlayerGoldInsufficient;
         if (buildablesInventory != null)
             buildablesInventory.RequestCatalogBroadcast();
 
@@ -142,6 +152,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EnsureExitHandler();
         AttachPhaseButtonListener();
         SyncPhaseUiState();
+        CacheGoldLabelColor();
         SyncGoldLabel();
     }
 
@@ -160,6 +171,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimEnded -= HandleFreeAimEnded;
         EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
         EventsManager.PlayerGoldChanged -= HandlePlayerGoldChanged;
+        EventsManager.PlayerGoldInsufficient -= HandlePlayerGoldInsufficient;
         DetachPhaseButtonListener();
         HideFreeAimUi();
         HideReticle();
@@ -170,6 +182,9 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             StopCoroutine(phaseBannerRoutine);
             phaseBannerRoutine = null;
         }
+
+        StopGoldPulse();
+        RestoreGoldLabelColor();
     }
 
     /// <summary>
@@ -442,14 +457,6 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     }
 
     /// <summary>
-    /// Updates the gold label when the player's balance changes.
-    /// </summary>
-    private void HandlePlayerGoldChanged(int gold)
-    {
-        UpdateGoldLabel(gold);
-    }
-
-    /// <summary>
     /// Ensures build UI and free-aim UI follow the active phase rules.
     /// </summary>
     private void ApplyPhaseUiState(GamePhase phase, bool animateBanner)
@@ -635,6 +642,24 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         ApplyPhaseUiState(manager.CurrentPhase, false);
         UpdatePhaseToggleInteractable();
     }
+    #endregion
+
+    #region Economy UI
+    /// <summary>
+    /// Updates the gold label when the player's balance changes.
+    /// </summary>
+    private void HandlePlayerGoldChanged(int gold)
+    {
+        UpdateGoldLabel(gold);
+    }
+
+    /// <summary>
+    /// Plays the insufficient gold feedback when a build attempt is blocked.
+    /// </summary>
+    private void HandlePlayerGoldInsufficient(int currentGold, int requiredGold)
+    {
+        TriggerGoldPulse();
+    }
 
     /// <summary>
     /// Requests the current balance to populate the gold label at startup.
@@ -657,6 +682,75 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             return;
 
         goldLabel.text = $"CURRENT GOLD : {gold}";
+    }
+
+    /// <summary>
+    /// Stores the baseline gold label color for future feedback resets.
+    /// </summary>
+    private void CacheGoldLabelColor()
+    {
+        if (goldLabel == null)
+            return;
+
+        goldLabelBaseColor = goldLabel.color;
+    }
+
+    /// <summary>
+    /// Restores the gold label to its cached base color.
+    /// </summary>
+    private void RestoreGoldLabelColor()
+    {
+        if (goldLabel == null)
+            return;
+
+        goldLabel.color = goldLabelBaseColor;
+    }
+
+    /// <summary>
+    /// Starts or restarts the pulse feedback coroutine on the gold label.
+    /// </summary>
+    private void TriggerGoldPulse()
+    {
+        if (goldLabel == null)
+            return;
+
+        if (goldPulseRoutine != null)
+            StopCoroutine(goldPulseRoutine);
+
+        goldPulseRoutine = StartCoroutine(GoldPulseRoutine());
+    }
+
+    /// <summary>
+    /// Stops any running gold pulse feedback.
+    /// </summary>
+    private void StopGoldPulse()
+    {
+        if (goldPulseRoutine == null)
+            return;
+
+        StopCoroutine(goldPulseRoutine);
+        goldPulseRoutine = null;
+    }
+
+    /// <summary>
+    /// Animates the gold label color to highlight insufficient funds.
+    /// </summary>
+    private IEnumerator GoldPulseRoutine()
+    {
+        RestoreGoldLabelColor();
+        float duration = Mathf.Max(0.05f, goldInsufficientPulseSeconds);
+        float timer = 0f;
+        while (timer < duration)
+        {
+            timer += Time.unscaledDeltaTime;
+            float normalized = duration > 0f ? Mathf.Clamp01(timer / duration) : 1f;
+            float curve = goldInsufficientCurve != null ? Mathf.Clamp01(goldInsufficientCurve.Evaluate(normalized)) : normalized;
+            goldLabel.color = Color.Lerp(goldLabelBaseColor, goldInsufficientColor, curve);
+            yield return null;
+        }
+
+        RestoreGoldLabelColor();
+        goldPulseRoutine = null;
     }
     #endregion
 
