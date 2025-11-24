@@ -5754,8 +5754,16 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 330585545}
     - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
+      propertyPath: clampTurnRate
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
+      propertyPath: yawSensitivity
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
       propertyPath: pitchSensitivity
-      value: 0.35
+      value: 0.25
       objectReference: {fileID: 0}
     - target: {fileID: 8463089210557255012, guid: 45e0e0577aa9fb74aba021adb53b71fa, type: 3}
       propertyPath: hideLerpThreshold

@@ -65,6 +65,7 @@ namespace Player.Build
         private bool allowReposition = true;
         private bool allowPerspective = true;
         private bool allowHoldFeedback = true;
+        private bool possessionLocked;
         private static readonly List<RaycastResult> uiRaycastBuffer = new List<RaycastResult>(8);
         #endregion
         #endregion
@@ -86,6 +87,8 @@ namespace Player.Build
         {
             EventsManager.BuildablePlacementResolved += HandlePlacementResolved;
             EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
+            EventsManager.TurretFreeAimStarted += HandleTurretFreeAimStarted;
+            EventsManager.TurretFreeAimEnded += HandleTurretFreeAimEnded;
             SyncPhasePermissions();
             InitializeInputBindings();
         }
@@ -97,6 +100,8 @@ namespace Player.Build
         {
             EventsManager.BuildablePlacementResolved -= HandlePlacementResolved;
             EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
+            EventsManager.TurretFreeAimStarted -= HandleTurretFreeAimStarted;
+            EventsManager.TurretFreeAimEnded -= HandleTurretFreeAimEnded;
             if (dragActive || awaitingPlacementResolution)
                 RestoreCachedTurret();
 
@@ -192,10 +197,22 @@ namespace Player.Build
 
             GameManager manager = GameManager.Instance;
             if (manager != null && manager.IsGamePaused)
+            {
+                primaryContactActive = false;
                 return;
+            }
 
             if (!allowReposition && !allowPerspective)
+            {
+                primaryContactActive = false;
                 return;
+            }
+
+            if (possessionLocked)
+            {
+                primaryContactActive = false;
+                return;
+            }
 
             primaryCurrentPosition = primaryPositionAction.ReadValue<Vector2>();
 
@@ -655,6 +672,24 @@ namespace Player.Build
                 ResetHoldState();
             if (!allowHoldFeedback)
                 HideHoldIndicator();
+        }
+
+        /// <summary>
+        /// Prevents starting new hold interactions while a turret is already possessed.
+        /// </summary>
+        private void HandleTurretFreeAimStarted(PooledTurret turret)
+        {
+            possessionLocked = true;
+            ResetHoldState();
+            HideHoldIndicator();
+        }
+
+        /// <summary>
+        /// Allows new holds once free-aim possession ends.
+        /// </summary>
+        private void HandleTurretFreeAimEnded(PooledTurret turret)
+        {
+            possessionLocked = false;
         }
 
         /// <summary>

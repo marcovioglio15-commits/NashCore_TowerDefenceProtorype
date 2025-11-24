@@ -445,7 +445,7 @@ public class InputManager : Singleton<InputManager>
     private void EvaluateDrag()
     {
         Vector2 displacement = primaryCurrentPosition - primaryStartPosition;
-        if (!dragActive && !swipeRaised && displacement.magnitude >= dragStartDistanceThreshold)
+        if (!dragActive && displacement.magnitude >= dragStartDistanceThreshold)
             dragActive = true;
 
         if (!dragActive)

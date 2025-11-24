@@ -23,18 +23,18 @@ namespace Player.Build
 
         #region Variables And Properties
         #region Serialized Fields
+        [Tooltip("Camera interpolated into turret perspective during free-aim control.")]
         [Header("Camera")]
-        [Tooltip("Camera interpolated into turret perspective during free-aim control.")] 
         [SerializeField] private Camera targetCamera;
         [Tooltip("Local offset from the turret anchor applied to the camera.")]
         [SerializeField] private Vector3 cameraLocalOffset = new Vector3(0f, 0.1f, -0.85f);
-        [Tooltip("Seconds used for linear interpolation when entering free-aim.")] 
+        [Tooltip("Seconds used for linear interpolation when entering free-aim.")]
         [SerializeField] private float enterLerpSeconds = 0.4f;
         [Tooltip("Seconds used for linear interpolation when exiting free-aim.")]
         [SerializeField] private float exitLerpSeconds = 0.35f;
 
-        [Header("Rotation")]
         [Tooltip("Axes interpreted from drag and swipe while controlling a turret.")]
+        [Header("Rotation")]
         [SerializeField] private FreeAimAxisMode axisMode = FreeAimAxisMode.HorizontalAndVertical;
         [Tooltip("Degrees of yaw applied per pixel of horizontal drag or swipe.")]
         [SerializeField] private float yawSensitivity = 0.35f;
@@ -46,22 +46,26 @@ namespace Player.Build
         [SerializeField] private float pitchUpClampDegrees = 55f;
         [Tooltip("Maximum downward pitch offset allowed relative to the starting orientation; zero disables the clamp.")]
         [SerializeField] private float pitchDownClampDegrees = 35f;
-        [Tooltip("Maximum yaw offset allowed while possessed, relative to the starting orientation; zero disables the clamp.")] 
+        [Tooltip("Maximum yaw offset allowed while possessed, relative to the starting orientation; zero disables the clamp.")]
         [SerializeField] private float fallbackYawClampDegrees = 110f;
+        [Tooltip("When true, gesture deltas respect turret turn rate; when false they are applied immediately using queued overflow if needed.")]
+        [SerializeField] private bool clampTurnRate = true;
 
+        [Tooltip("Smallest cadence allowed to process manual tap firing.")]
         [Header("Firing")]
-        [Tooltip("Smallest cadence allowed to process manual tap firing.")] 
         [SerializeField] private float FireCD = 0.05f;
-        [Tooltip("Local offset from the possessed camera used as projectile spawn origin.")] 
+        [Tooltip("Local offset from the possessed camera used as projectile spawn origin.")]
         [SerializeField] private Vector3 freeAimProjectileOffset = new Vector3(0f, -0.05f, 0.1f);
 
+        [Tooltip("Distance at which the controlled turret is hidden to avoid camera clipping.")]
         [Header("Visibility")]
-        [Tooltip("Distance at which the controlled turret is hidden to avoid camera clipping.")] 
         [SerializeField] private float hideDistance = 0.45f;
-        [Tooltip("Normalized camera lerp progress at which turret renderers are hidden.")] 
-        [SerializeField, Range(0f,1f)] private float hideLerpThreshold = 0.65f;
-        [Tooltip("Normalized camera lerp progress at which reticle and exit UI arm.")] 
-        [SerializeField, Range(0f,1f)] private float uiRevealLerpThreshold = 0.85f;
+        [Tooltip("Normalized camera lerp progress at which turret renderers are hidden.")]
+        [Range(0f,1f)]
+        [SerializeField] private float hideLerpThreshold = 0.65f;
+        [Tooltip("Normalized camera lerp progress at which reticle and exit UI arm.")]
+        [Range(0f,1f)]
+        [SerializeField] private float uiRevealLerpThreshold = 0.85f;
         #endregion
 
         #region Runtime State
@@ -78,6 +82,8 @@ namespace Player.Build
         private Quaternion anchorBaseRotation;
         private float currentYawOffset;
         private float currentPitchOffset;
+        private float pendingYawInput;
+        private float pendingPitchInput;
         private bool turretHiddenDuringFreeAim;
         private Renderer[] cachedTurretRenderers;
         private bool[] cachedRendererStates;
@@ -146,17 +152,23 @@ namespace Player.Build
             if (fireCooldownTimer > 0f)
                 fireCooldownTimer = Mathf.Max(0f, fireCooldownTimer - Time.deltaTime);
 
-            if (freeAimActive && reticleHoldActive)
+            if (!freeAimActive)
+                return;
+
+            if (activeTurret == null || !activeTurret.gameObject.activeInHierarchy)
+            {
+                ExitFreeAim();
+                return;
+            }
+
+            if (reticleHoldActive)
                 TryFire();
 
-            if (freeAimActive && activeTurret != null && activeTurret.HasDefinition)
+            if (activeTurret.HasDefinition)
                 activeTurret.CooldownHeat(Time.deltaTime);
 
-            if (freeAimActive && (activeTurret == null || !activeTurret.gameObject.activeInHierarchy))
-                ExitFreeAim();
-
-            if (freeAimActive)
-                EvaluateCameraClipping();
+            ProcessPendingAngularInput();
+            EvaluateCameraClipping();
         }
         #endregion
 
@@ -186,7 +198,7 @@ namespace Player.Build
             if (!freeAimActive)
                 return;
 
-            ApplyAngularInput(delta);
+            QueueAngularInput(delta);
         }
 
         /// <summary>
@@ -197,7 +209,7 @@ namespace Player.Build
             if (!freeAimActive)
                 return;
 
-            ApplyAngularInput(delta);
+            QueueAngularInput(delta);
         }
 
         /// <summary>
@@ -287,6 +299,8 @@ namespace Player.Build
             reticleHoldActive = false;
             currentYawOffset = 0f;
             currentPitchOffset = 0f;
+            pendingYawInput = 0f;
+            pendingPitchInput = 0f;
             CacheCameraState();
             CacheAnchorOrientation();
             CacheYawFollowTargets();
@@ -309,6 +323,8 @@ namespace Player.Build
             fireCooldownTimer = 0f;
             currentYawOffset = 0f;
             currentPitchOffset = 0f;
+            pendingYawInput = 0f;
+            pendingPitchInput = 0f;
             uiArmed = false;
             reticleHoldActive = false;
             StartCameraReturn();
@@ -333,6 +349,8 @@ namespace Player.Build
             freeAimActive = false;
             fireCooldownTimer = 0f;
             reticleHoldActive = false;
+            pendingYawInput = 0f;
+            pendingPitchInput = 0f;
             ShowTurretRenderers();
             cachedTurretRenderers = null;
             cachedRendererStates = null;
@@ -343,47 +361,125 @@ namespace Player.Build
 
         #region Rotation And Fire
         /// <summary>
-        /// Rotates the turret respecting sensitivity and turn rate constraints.
+        /// Queues gesture deltas and processes yaw and pitch using the configured clamp strategy.
         /// </summary>
-        private void ApplyAngularInput(Vector2 delta)
+        private void QueueAngularInput(Vector2 delta)
         {
             if (activeTurret == null)
                 return;
 
-            TurretStatSnapshot stats = activeTurret.ActiveStats;
-            float maxDegrees = stats.TurnRate * Time.deltaTime;
             bool processYaw = ShouldProcessYaw();
             bool processPitch = ShouldProcessPitch();
+            if (!processYaw)
+                pendingYawInput = 0f;
+            if (!processPitch)
+                pendingPitchInput = 0f;
+
             float pitchThreshold = pitchInputDeadZone <= 0f ? 0f : pitchInputDeadZone;
             bool pitchEngaged = processPitch && Mathf.Abs(delta.y) >= pitchThreshold;
-            float yawDelta = processYaw ? delta.x * yawSensitivity : 0f;
-            float pitchDelta = pitchEngaged ? -delta.y * pitchSensitivity : 0f;
-            if (maxDegrees > 0f)
+            if (processYaw)
+                pendingYawInput += delta.x * yawSensitivity;
+            if (pitchEngaged)
+                pendingPitchInput += -delta.y * pitchSensitivity;
+
+            ProcessPendingAngularInput();
+        }
+
+        /// <summary>
+        /// Applies queued yaw and pitch respecting clamp preferences and range limits.
+        /// </summary>
+        private void ProcessPendingAngularInput()
+        {
+            if (!freeAimActive || activeTurret == null)
+                return;
+
+            bool processYaw = ShouldProcessYaw();
+            bool processPitch = ShouldProcessPitch();
+            if (!processYaw)
+                pendingYawInput = 0f;
+            if (!processPitch)
+                pendingPitchInput = 0f;
+
+            bool hasYaw = processYaw && !Mathf.Approximately(pendingYawInput, 0f);
+            bool hasPitch = processPitch && !Mathf.Approximately(pendingPitchInput, 0f);
+            if (!hasYaw && !hasPitch)
+                return;
+
+            float yawStep = hasYaw ? pendingYawInput : 0f;
+            float pitchStep = hasPitch ? pendingPitchInput : 0f;
+            float maxStep = ResolveMaxAngularStep();
+
+            if (float.IsPositiveInfinity(maxStep))
             {
-                if (processYaw)
-                    yawDelta = Mathf.Clamp(yawDelta, -maxDegrees, maxDegrees);
-                if (pitchEngaged)
-                    pitchDelta = Mathf.Clamp(pitchDelta, -maxDegrees, maxDegrees);
+                pendingYawInput = 0f;
+                pendingPitchInput = 0f;
+            }
+            else if (maxStep > 0f)
+            {
+                if (hasYaw)
+                {
+                    float clampedYaw = Mathf.Clamp(yawStep, -maxStep, maxStep);
+                    pendingYawInput -= clampedYaw;
+                    yawStep = clampedYaw;
+                }
+
+                if (hasPitch)
+                {
+                    float clampedPitch = Mathf.Clamp(pitchStep, -maxStep, maxStep);
+                    pendingPitchInput -= clampedPitch;
+                    pitchStep = clampedPitch;
+                }
+            }
+            else
+            {
+                pendingYawInput = 0f;
+                pendingPitchInput = 0f;
+                return;
             }
 
-            if (processYaw)
+            bool appliedRotation = false;
+
+            if (hasYaw)
             {
                 float clampHalf = ResolveYawClampHalf();
                 if (float.IsPositiveInfinity(clampHalf))
-                    currentYawOffset = Mathf.Repeat(currentYawOffset + yawDelta + 180f, 360f) - 180f;
+                {
+                    currentYawOffset = Mathf.Repeat(currentYawOffset + yawStep + 180f, 360f) - 180f;
+                    appliedRotation = true;
+                }
                 else
-                    currentYawOffset = Mathf.Clamp(currentYawOffset + yawDelta, -clampHalf, clampHalf);
+                {
+                    float clampedYawOffset = Mathf.Clamp(currentYawOffset + yawStep, -clampHalf, clampHalf);
+                    float appliedYaw = clampedYawOffset - currentYawOffset;
+                    if (!Mathf.Approximately(appliedYaw, 0f))
+                    {
+                        currentYawOffset = clampedYawOffset;
+                        appliedRotation = true;
+                    }
+
+                    if (!Mathf.Approximately(appliedYaw, yawStep))
+                        pendingYawInput = 0f;
+                }
             }
 
-            if (pitchEngaged)
+            if (hasPitch)
             {
                 Vector2 pitchClamp = ResolvePitchClamp();
                 float minPitch = -pitchClamp.x;
                 float maxPitch = pitchClamp.y;
-                currentPitchOffset = Mathf.Clamp(currentPitchOffset + pitchDelta, minPitch, maxPitch);
+                float clampedPitchOffset = Mathf.Clamp(currentPitchOffset + pitchStep, minPitch, maxPitch);
+                float appliedPitch = clampedPitchOffset - currentPitchOffset;
+                if (!Mathf.Approximately(appliedPitch, 0f))
+                {
+                    currentPitchOffset = clampedPitchOffset;
+                    appliedRotation = true;
+                }
+
+                if (!Mathf.Approximately(appliedPitch, pitchStep))
+                    pendingPitchInput = 0f;
             }
 
-            if (processYaw || processPitch)
+            if (appliedRotation)
                 ApplyCameraOffsets();
         }
 
@@ -659,6 +755,24 @@ namespace Player.Build
         private bool ShouldProcessPitch()
         {
             return axisMode == FreeAimAxisMode.VerticalOnly || axisMode == FreeAimAxisMode.HorizontalAndVertical;
+        }
+
+        /// <summary>
+        /// Determines the maximum angular step allowed for this frame based on clamp preference and turret stats.
+        /// </summary>
+        private float ResolveMaxAngularStep()
+        {
+            if (!clampTurnRate)
+                return float.PositiveInfinity;
+
+            if (activeTurret == null || !activeTurret.HasDefinition)
+                return float.PositiveInfinity;
+
+            float turnRate = activeTurret.ActiveStats.TurnRate;
+            if (turnRate <= 0f)
+                return 0f;
+
+            return turnRate * Time.deltaTime;
         }
 
         /// <summary>
@@ -950,6 +1064,17 @@ namespace Player.Build
             Gizmos.color = new Color(0.2f, 0.85f, 1f, 0.35f);
             Gizmos.DrawWireSphere(offsetPosition, 0.15f);
             Gizmos.DrawLine(anchor.position, offsetPosition);
+
+            float clampHalf = ResolveYawClampHalf();
+            if (!float.IsPositiveInfinity(clampHalf))
+            {
+                Vector3 forward = anchor.forward;
+                Vector3 upAxis = anchor.up;
+                float radius = 0.6f;
+                Gizmos.color = new Color(0.95f, 0.65f, 0.2f, 0.75f);
+                Gizmos.DrawLine(anchor.position, anchor.position + Quaternion.AngleAxis(-clampHalf, upAxis) * forward * radius);
+                Gizmos.DrawLine(anchor.position, anchor.position + Quaternion.AngleAxis(clampHalf, upAxis) * forward * radius);
+            }
         }
 
         /// <summary>
