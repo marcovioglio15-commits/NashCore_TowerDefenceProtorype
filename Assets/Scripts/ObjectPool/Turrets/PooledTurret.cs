@@ -4,6 +4,28 @@ using UnityEngine;
 namespace Scriptables.Turrets
 {
     /// <summary>
+    /// Axis components applied when aligning turret visuals to possessed camera rotation.
+    /// </summary>
+    public enum FreeAimFollowAxis
+    {
+        HorizontalOnly,
+        VerticalOnly,
+        HorizontalAndVertical
+    }
+
+    /// <summary>
+    /// Authored transform plus axis policy used during free-aim visual alignment.
+    /// </summary>
+    [Serializable]
+    public struct FreeAimRotationFollower
+    {
+        [Tooltip("Transform rotated to mirror possessed camera orientation.")]
+        public Transform Target;
+        [Tooltip("Axis components of the camera rotation to apply on this transform.")]
+        public FreeAimFollowAxis Axis;
+    }
+
+    /// <summary>
     /// Base pooled turret behaviour handling spawn context application, runtime bookkeeping and debug visualization.
     /// </summary>
     [DisallowMultipleComponent]
@@ -12,41 +34,34 @@ namespace Scriptables.Turrets
         #region Variables And Properties
         #region Serialized Fields
 
-        [Header("Definitions")]
-
-        [SerializeField]
         [Tooltip("Default definition used when the spawn context does not provide one.")]
-        private TurretClassDefinition defaultDefinition;
+        [Header("Definitions")]
+        [SerializeField] private TurretClassDefinition defaultDefinition;
 
-        [Header("Transforms")]
-
-        [SerializeField]
         [Tooltip("Yaw transform rotated during target tracking.")]
-        private Transform yawRoot;
+        [Header("Transforms")]
+        [SerializeField] private Transform yawRoot;
 
-        [SerializeField]
         [Tooltip("Pitch transform rotated during target tracking.")]
-        private Transform pitchRoot;
+        [SerializeField] private Transform pitchRoot;
 
-        [SerializeField]
         [Tooltip("Projectile origin used for bazooka splash visualization and muzzle placement.")]
-        private Transform muzzle;
+        [SerializeField] private Transform muzzle;
 
-        [Header("Free Aim Presentation")]
         [Tooltip("Renderers disabled while the player possesses the turret to avoid camera clipping.")]
+        [Header("Free Aim Presentation")]
         [SerializeField] private Renderer[] freeAimHiddenRenderers;
         [Tooltip("Transforms rotated horizontally to mirror the possessed camera when any visuals stay visible.")]
         [SerializeField] private Transform[] freeAimYawTargets;
+        [Tooltip("Transforms aligned to the possessed camera with selectable axis following.")]
+        [SerializeField] private FreeAimRotationFollower[] freeAimRotationFollowers;
 
-        [Header("Debug")]
-
-        [SerializeField]
         [Tooltip("Range gizmo color for editor previews.")]
-        private Color rangeColor = new Color(0.15f, 0.85f, 1f, 0.45f);
+        [Header("Debug")]
+        [SerializeField] private Color rangeColor = new Color(0.15f, 0.85f, 1f, 0.45f);
 
-        [SerializeField]
         [Tooltip("Footprint gizmo color for placement previews.")]
-        private Color footprintColor = new Color(0.25f, 0.9f, 0.35f, 0.25f);
+        [SerializeField] private Color footprintColor = new Color(0.25f, 0.9f, 0.35f, 0.25f);
 
         #endregion
 
@@ -63,6 +78,7 @@ namespace Scriptables.Turrets
         private Quaternion yawBaseRotation;
         private Renderer[] cachedRenderers;
         private Transform[] cachedYawFallback;
+        private FreeAimRotationFollower[] cachedFollowerFallback;
 
         #endregion
 
@@ -127,6 +143,14 @@ namespace Scriptables.Turrets
             get { return freeAimYawTargets; }
         }
 
+        /// <summary>
+        /// Optional transforms aligned to the possessed camera with explicit axis selection.
+        /// </summary>
+        public FreeAimRotationFollower[] FreeAimRotationFollowers
+        {
+            get { return freeAimRotationFollowers; }
+        }
+
         #endregion
         #endregion
 
@@ -161,6 +185,7 @@ namespace Scriptables.Turrets
             freeAimActive = false;
             cachedRenderers = null;
             cachedYawFallback = null;
+            cachedFollowerFallback = null;
             ApplyDefinition(context.Definition != null ? context.Definition : defaultDefinition);
             if (!HasDefinition)
             {
@@ -189,6 +214,7 @@ namespace Scriptables.Turrets
             CacheYawBaseRotation();
             cachedRenderers = null;
             cachedYawFallback = null;
+            cachedFollowerFallback = null;
         }
 
         #endregion
@@ -324,6 +350,30 @@ namespace Scriptables.Turrets
             return cachedYawFallback;
         }
 
+        /// <summary>
+        /// Returns authored rotation followers with axis selection, falling back to yaw-only when unspecified.
+        /// </summary>
+        public FreeAimRotationFollower[] GetFreeAimRotationFollowers()
+        {
+            if (freeAimRotationFollowers != null && freeAimRotationFollowers.Length > 0)
+                return freeAimRotationFollowers;
+
+            Transform[] yawTargets = GetFreeAimYawFollowTargets();
+            if (yawTargets == null || yawTargets.Length == 0)
+                return null;
+
+            if (cachedFollowerFallback == null || cachedFollowerFallback.Length != yawTargets.Length)
+                cachedFollowerFallback = new FreeAimRotationFollower[yawTargets.Length];
+
+            for (int i = 0; i < yawTargets.Length; i++)
+            {
+                cachedFollowerFallback[i].Target = yawTargets[i];
+                cachedFollowerFallback[i].Axis = FreeAimFollowAxis.HorizontalOnly;
+            }
+
+            return cachedFollowerFallback;
+        }
+
         #endregion
 
         #region Gizmos
@@ -352,6 +402,8 @@ namespace Scriptables.Turrets
 
             if (Definition.FreeAimFire.Pattern == TurretFirePattern.Bazooka && splashRadius > 0f)
                 DrawSplashGizmo(splashRadius);
+
+            DrawRotationFollowerGizmos();
         }
 
         /// <summary>
@@ -365,6 +417,52 @@ namespace Scriptables.Turrets
 
             Gizmos.color = new Color(1f, 0.55f, 0.2f, 0.5f);
             Gizmos.DrawWireSphere(muzzle.position, clampedRadius);
+        }
+
+        /// <summary>
+        /// Visualizes authored free-aim rotation followers with axis hints.
+        /// </summary>
+        private void DrawRotationFollowerGizmos()
+        {
+            FreeAimRotationFollower[] followers = GetFreeAimRotationFollowers();
+            if (followers == null || followers.Length == 0)
+                return;
+
+            for (int i = 0; i < followers.Length; i++)
+            {
+                Transform follower = followers[i].Target;
+                if (follower == null)
+                    continue;
+
+                Gizmos.color = new Color(0.15f, 0.6f, 1f, 0.55f);
+                Gizmos.DrawWireSphere(follower.position, 0.07f);
+                DrawRotationAxisLines(follower, followers[i].Axis);
+            }
+        }
+
+        /// <summary>
+        /// Draws axis lines describing the rotation policy for a follower.
+        /// </summary>
+        private void DrawRotationAxisLines(Transform follower, FreeAimFollowAxis axis)
+        {
+            if (follower == null)
+                return;
+
+            float scale = 0.25f;
+            bool yawEnabled = axis == FreeAimFollowAxis.HorizontalOnly || axis == FreeAimFollowAxis.HorizontalAndVertical;
+            bool pitchEnabled = axis == FreeAimFollowAxis.VerticalOnly || axis == FreeAimFollowAxis.HorizontalAndVertical;
+
+            if (yawEnabled)
+            {
+                Gizmos.color = new Color(0.15f, 0.85f, 0.55f, 0.7f);
+                Gizmos.DrawLine(follower.position, follower.position + follower.up * scale);
+            }
+
+            if (pitchEnabled)
+            {
+                Gizmos.color = new Color(0.95f, 0.55f, 0.2f, 0.7f);
+                Gizmos.DrawLine(follower.position, follower.position + follower.right * scale);
+            }
         }
 
         #endregion

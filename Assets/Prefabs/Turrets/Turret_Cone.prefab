@@ -129,6 +129,9 @@ MonoBehaviour:
   yawRoot: {fileID: 6521521769185566705}
   pitchRoot: {fileID: 6521521769185566705}
   muzzle: {fileID: 5276634281200093138}
+  freeAimHiddenRenderers: []
+  freeAimYawTargets: []
+  freeAimRotationFollowers: []
   rangeColor: {r: 0.15, g: 0.85, b: 1, a: 0.45}
   footprintColor: {r: 0.25, g: 0.9, b: 0.35, a: 0.25}
 --- !u!114 &-2308685442471462828

@@ -50,6 +50,11 @@ namespace Player.Build
         [SerializeField] private float fallbackYawClampDegrees = 110f;
         [Tooltip("When true, gesture deltas respect turret turn rate; when false they are applied immediately using queued overflow if needed.")]
         [SerializeField] private bool clampTurnRate = true;
+        [Tooltip("Seconds used to ease out rotation when the input is released to avoid abrupt stops.")]
+        [Header("Input Damping")]
+        [SerializeField, Range(0.01f, 0.5f)] private float releaseDampSeconds = 0.15f;
+        [Tooltip("Maximum degrees per second while smoothing release; zero disables this cap.")]
+        [SerializeField] private float releaseMaxDegreesPerSecond = 0f;
 
         [Tooltip("Smallest cadence allowed to process manual tap firing.")]
         [Header("Firing")]
@@ -84,6 +89,11 @@ namespace Player.Build
         private float currentPitchOffset;
         private float pendingYawInput;
         private float pendingPitchInput;
+        private float targetYawOffset;
+        private float targetPitchOffset;
+        private float yawDampVelocity;
+        private float pitchDampVelocity;
+        private bool cameraOffsetsDirty;
         private bool turretHiddenDuringFreeAim;
         private Renderer[] cachedTurretRenderers;
         private bool[] cachedRendererStates;
@@ -91,8 +101,8 @@ namespace Player.Build
         private bool reticleHoldActive;
         private WaitForSeconds cachedFreeAimInterDelay;
         private float cachedFreeAimDelaySeconds;
-        private Transform[] yawFollowTargets;
-        private Quaternion[] yawFollowBaseRotations;
+        private FreeAimRotationFollower[] rotationFollowers;
+        private Quaternion[] rotationFollowerBaseRotations;
         private bool phaseAllowsFreeAim = true;
         #endregion
         #endregion
@@ -169,6 +179,7 @@ namespace Player.Build
 
             ProcessPendingAngularInput();
             EvaluateCameraClipping();
+            UpdateSmoothedRotation();
         }
         #endregion
 
@@ -299,11 +310,16 @@ namespace Player.Build
             reticleHoldActive = false;
             currentYawOffset = 0f;
             currentPitchOffset = 0f;
+            targetYawOffset = 0f;
+            targetPitchOffset = 0f;
+            yawDampVelocity = 0f;
+            pitchDampVelocity = 0f;
+            cameraOffsetsDirty = true;
             pendingYawInput = 0f;
             pendingPitchInput = 0f;
             CacheCameraState();
             CacheAnchorOrientation();
-            CacheYawFollowTargets();
+            CacheRotationFollowers();
             StartCameraLerpToTurret();
             EventsManager.InvokeTurretFreeAimStarted(activeTurret);
         }
@@ -323,6 +339,11 @@ namespace Player.Build
             fireCooldownTimer = 0f;
             currentYawOffset = 0f;
             currentPitchOffset = 0f;
+            targetYawOffset = 0f;
+            targetPitchOffset = 0f;
+            yawDampVelocity = 0f;
+            pitchDampVelocity = 0f;
+            cameraOffsetsDirty = false;
             pendingYawInput = 0f;
             pendingPitchInput = 0f;
             uiArmed = false;
@@ -332,8 +353,8 @@ namespace Player.Build
             ShowTurretRenderers();
             cachedTurretRenderers = null;
             cachedRendererStates = null;
-            yawFollowTargets = null;
-            yawFollowBaseRotations = null;
+            rotationFollowers = null;
+            rotationFollowerBaseRotations = null;
         }
 
         /// <summary>
@@ -351,11 +372,16 @@ namespace Player.Build
             reticleHoldActive = false;
             pendingYawInput = 0f;
             pendingPitchInput = 0f;
+            targetYawOffset = 0f;
+            targetPitchOffset = 0f;
+            yawDampVelocity = 0f;
+            pitchDampVelocity = 0f;
+            cameraOffsetsDirty = false;
             ShowTurretRenderers();
             cachedTurretRenderers = null;
             cachedRendererStates = null;
-            yawFollowTargets = null;
-            yawFollowBaseRotations = null;
+            rotationFollowers = null;
+            rotationFollowerBaseRotations = null;
         }
         #endregion
 
@@ -437,24 +463,24 @@ namespace Player.Build
                 return;
             }
 
-            bool appliedRotation = false;
+            bool targetChanged = false;
 
             if (hasYaw)
             {
                 float clampHalf = ResolveYawClampHalf();
                 if (float.IsPositiveInfinity(clampHalf))
                 {
-                    currentYawOffset = Mathf.Repeat(currentYawOffset + yawStep + 180f, 360f) - 180f;
-                    appliedRotation = true;
+                    targetYawOffset = NormalizeSignedAngle(targetYawOffset + yawStep);
+                    targetChanged = true;
                 }
                 else
                 {
-                    float clampedYawOffset = Mathf.Clamp(currentYawOffset + yawStep, -clampHalf, clampHalf);
-                    float appliedYaw = clampedYawOffset - currentYawOffset;
+                    float clampedTarget = Mathf.Clamp(targetYawOffset + yawStep, -clampHalf, clampHalf);
+                    float appliedYaw = clampedTarget - targetYawOffset;
                     if (!Mathf.Approximately(appliedYaw, 0f))
                     {
-                        currentYawOffset = clampedYawOffset;
-                        appliedRotation = true;
+                        targetYawOffset = clampedTarget;
+                        targetChanged = true;
                     }
 
                     if (!Mathf.Approximately(appliedYaw, yawStep))
@@ -467,20 +493,51 @@ namespace Player.Build
                 Vector2 pitchClamp = ResolvePitchClamp();
                 float minPitch = -pitchClamp.x;
                 float maxPitch = pitchClamp.y;
-                float clampedPitchOffset = Mathf.Clamp(currentPitchOffset + pitchStep, minPitch, maxPitch);
-                float appliedPitch = clampedPitchOffset - currentPitchOffset;
+                float clampedPitchOffset = Mathf.Clamp(targetPitchOffset + pitchStep, minPitch, maxPitch);
+                float appliedPitch = clampedPitchOffset - targetPitchOffset;
                 if (!Mathf.Approximately(appliedPitch, 0f))
                 {
-                    currentPitchOffset = clampedPitchOffset;
-                    appliedRotation = true;
+                    targetPitchOffset = clampedPitchOffset;
+                    targetChanged = true;
                 }
 
                 if (!Mathf.Approximately(appliedPitch, pitchStep))
                     pendingPitchInput = 0f;
             }
 
-            if (appliedRotation)
+            if (targetChanged)
+                cameraOffsetsDirty = true;
+        }
+
+        /// <summary>
+        /// Smooths yaw and pitch offsets toward their targets to avoid abrupt release stops.
+        /// </summary>
+        private void UpdateSmoothedRotation()
+        {
+            if (!freeAimActive)
+                return;
+
+            if (targetCamera == null && activeTurret == null)
+                return;
+
+            float deltaTime = Time.deltaTime;
+            if (deltaTime <= 0f)
+                return;
+
+            float dampTime = Mathf.Max(0.0001f, releaseDampSeconds);
+            float maxSpeed = releaseMaxDegreesPerSecond > 0f ? releaseMaxDegreesPerSecond : float.MaxValue;
+
+            float nextYaw = Mathf.SmoothDampAngle(currentYawOffset, targetYawOffset, ref yawDampVelocity, dampTime, maxSpeed, deltaTime);
+            float nextPitch = Mathf.SmoothDamp(currentPitchOffset, targetPitchOffset, ref pitchDampVelocity, dampTime, maxSpeed, deltaTime);
+            bool changed = !Mathf.Approximately(nextYaw, currentYawOffset) || !Mathf.Approximately(nextPitch, currentPitchOffset);
+            currentYawOffset = nextYaw;
+            currentPitchOffset = nextPitch;
+
+            if (changed || cameraOffsetsDirty)
+            {
+                cameraOffsetsDirty = false;
                 ApplyCameraOffsets();
+            }
         }
 
         /// <summary>
@@ -722,6 +779,11 @@ namespace Player.Build
             anchorBaseRotation = anchor.rotation;
             currentYawOffset = 0f;
             currentPitchOffset = 0f;
+            targetYawOffset = 0f;
+            targetPitchOffset = 0f;
+            yawDampVelocity = 0f;
+            pitchDampVelocity = 0f;
+            cameraOffsetsDirty = true;
         }
 
         /// <summary>
@@ -742,7 +804,7 @@ namespace Player.Build
             else
                 cameraTransform.rotation = offsetRotation;
 
-            ApplyYawFollowers(anchor);
+            ApplyRotationFollowers(anchor);
         }
         #endregion
 
@@ -800,52 +862,72 @@ namespace Player.Build
         }
 
         /// <summary>
-        /// Rotates designated turret transforms to mirror the camera yaw while visible.
+        /// Normalizes an angle to the [-180, 180] range.
         /// </summary>
-        private void ApplyYawFollowers(Transform anchor)
+        private float NormalizeSignedAngle(float angle)
         {
-            if (yawFollowTargets == null || yawFollowTargets.Length == 0)
+            return Mathf.Repeat(angle + 180f, 360f) - 180f;
+        }
+
+        /// <summary>
+        /// Rotates designated turret transforms to mirror the camera rotation while visible.
+        /// </summary>
+        private void ApplyRotationFollowers(Transform anchor)
+        {
+            if (rotationFollowers == null || rotationFollowers.Length == 0)
                 return;
 
             Vector3 upAxis = anchor != null ? anchor.up : Vector3.up;
+            Vector3 rightAxis = anchor != null ? anchor.right : Vector3.right;
             Quaternion yawRotation = Quaternion.AngleAxis(currentYawOffset, upAxis);
-            for (int i = 0; i < yawFollowTargets.Length; i++)
+            Quaternion pitchRotation = Quaternion.AngleAxis(currentPitchOffset, rightAxis);
+            for (int i = 0; i < rotationFollowers.Length; i++)
             {
-                Transform target = yawFollowTargets[i];
+                Transform target = rotationFollowers[i].Target;
                 if (target == null)
                     continue;
 
-                Quaternion baseRotation = yawFollowBaseRotations != null && yawFollowBaseRotations.Length > i ? yawFollowBaseRotations[i] : target.rotation;
-                target.rotation = yawRotation * baseRotation;
+                Quaternion baseRotation = rotationFollowerBaseRotations != null && rotationFollowerBaseRotations.Length > i ? rotationFollowerBaseRotations[i] : target.rotation;
+                bool applyYaw = rotationFollowers[i].Axis == FreeAimFollowAxis.HorizontalOnly || rotationFollowers[i].Axis == FreeAimFollowAxis.HorizontalAndVertical;
+                bool applyPitch = rotationFollowers[i].Axis == FreeAimFollowAxis.VerticalOnly || rotationFollowers[i].Axis == FreeAimFollowAxis.HorizontalAndVertical;
+                Quaternion followerRotation = baseRotation;
+                if (applyYaw && applyPitch)
+                    followerRotation = yawRotation * pitchRotation * baseRotation;
+                else if (applyYaw)
+                    followerRotation = yawRotation * baseRotation;
+                else if (applyPitch)
+                    followerRotation = pitchRotation * baseRotation;
+
+                target.rotation = followerRotation;
             }
         }
 
         /// <summary>
-        /// Captures yaw follow targets and their initial rotation for free-aim alignment.
+        /// Captures rotation followers and their initial rotation for free-aim alignment.
         /// </summary>
-        private void CacheYawFollowTargets()
+        private void CacheRotationFollowers()
         {
             if (activeTurret == null)
             {
-                yawFollowTargets = null;
-                yawFollowBaseRotations = null;
+                rotationFollowers = null;
+                rotationFollowerBaseRotations = null;
                 return;
             }
 
-            yawFollowTargets = activeTurret.GetFreeAimYawFollowTargets();
-            if (yawFollowTargets == null || yawFollowTargets.Length == 0)
+            rotationFollowers = activeTurret.GetFreeAimRotationFollowers();
+            if (rotationFollowers == null || rotationFollowers.Length == 0)
             {
-                yawFollowBaseRotations = null;
+                rotationFollowerBaseRotations = null;
                 return;
             }
 
-            if (yawFollowBaseRotations == null || yawFollowBaseRotations.Length != yawFollowTargets.Length)
-                yawFollowBaseRotations = new Quaternion[yawFollowTargets.Length];
+            if (rotationFollowerBaseRotations == null || rotationFollowerBaseRotations.Length != rotationFollowers.Length)
+                rotationFollowerBaseRotations = new Quaternion[rotationFollowers.Length];
 
-            for (int i = 0; i < yawFollowTargets.Length; i++)
+            for (int i = 0; i < rotationFollowers.Length; i++)
             {
-                Transform target = yawFollowTargets[i];
-                yawFollowBaseRotations[i] = target != null ? target.rotation : Quaternion.identity;
+                Transform target = rotationFollowers[i].Target;
+                rotationFollowerBaseRotations[i] = target != null ? target.rotation : Quaternion.identity;
             }
         }
 
