@@ -36,6 +36,7 @@ namespace Enemy
         private float currentHealth;
         private float contactProbeTimer;
         private float contactEffectCooldownTimer;
+        private EnemyMovement movementController;
         private readonly Collider[] contactBuffer = new Collider[8];
         private const float ContactProbeIntervalSeconds = 0.25f;
         private const float ContactEffectCooldownSeconds = 1.1f;
@@ -122,6 +123,9 @@ namespace Enemy
             currentHealth = activeStats.MaxHealth;
             contactProbeTimer = 0f;
             contactEffectCooldownTimer = 0f;
+            EnsureMovementController();
+            if (movementController != null)
+                movementController.BeginMovement(activeStats);
             HordesManager instance = HordesManager.Instance;
             if (instance != null)
                 instance.NotifyEnemySpawned(this);
@@ -265,6 +269,7 @@ namespace Enemy
                 if (playerHealth == null)
                     continue;
 
+                NotifyMovementContact(playerHealth);
                 ApplyContactToPlayer(playerHealth);
                 break;
             }
@@ -299,6 +304,28 @@ namespace Enemy
         private void HandleDeath()
         {
             OnDespawn();
+        }
+
+        /// <summary>
+        /// Caches the movement component attached to this enemy instance.
+        /// </summary>
+        private void EnsureMovementController()
+        {
+            if (movementController != null)
+                return;
+
+            movementController = GetComponent<EnemyMovement>();
+        }
+
+        /// <summary>
+        /// Halts navigation when the player is within contact range.
+        /// </summary>
+        private void NotifyMovementContact(Player.PlayerHealth playerHealth)
+        {
+            if (movementController == null)
+                return;
+
+            movementController.HandleContactEngagement(playerHealth, activeStats.ContactRange);
         }
 
         #endregion

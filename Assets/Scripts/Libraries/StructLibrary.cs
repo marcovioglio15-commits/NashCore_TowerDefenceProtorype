@@ -64,17 +64,20 @@ namespace Player.Inventory
         #endregion
     }
 }
+
+/// <summary>
+/// Holds distance and predecessor information computed by Dijkstra traversal.
+/// </summary>
 [System.Serializable]
-public struct DijkstraInfo
+public readonly struct DijkstraInfo
 {
-    public int[] distances;
-    //public Dictionary<int, int> pathIndexesDict;
-    public int[] pathIndexes;
-    public DijkstraInfo(in int[] distances, /*in Dictionary<int, int> pathIndexesDict,*/ in int[] pathIndexes)
+    public int[] Distances { get; }
+    public int[] Previous { get; }
+
+    public DijkstraInfo(in int[] distances, in int[] previous)
     {
-        this.distances = distances;
-        //this.pathIndexesDict = pathIndexesDict;
-        this.pathIndexes = pathIndexes;
+        Distances = distances;
+        Previous = previous;
     }
 }
 

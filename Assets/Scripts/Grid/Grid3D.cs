@@ -110,11 +110,6 @@ namespace Grid
         // Flat array of nodes.
         public GridNode[] graph;
         private bool gridInitialized;
-
-        [SerializeField] GridNode start;
-        [SerializeField] GridNode end;
-        [SerializeField] DijkstraInfo path;
-        [SerializeField] GameObject enemy;
         #endregion
 
         #region Nested Types
@@ -177,15 +172,6 @@ namespace Grid
         {
             base.Awake();
             InitializeGrid();
-        }
-
-        private void Start()
-        {
-            TryGetNode(enemySpawnCells[0], out start);
-            TryGetNode(enemyGoalCells[0], out end);
-            path = SearchWithDijkstraAlgorithm(in start, in end);
-            GameObject go = Instantiate(enemy);
-            go.GetComponent<EnemyMovement>().path = path;
         }
 
         /// <summary>
@@ -289,52 +275,174 @@ namespace Grid
 
         #region Dijkstra
 
+        /// <summary>
+        /// Executes Dijkstra traversal from the provided root node and caches distances and predecessors.
+        /// </summary>
         private DijkstraInfo SearchWithDijkstraAlgorithm(in GridNode rootNode, in GridNode endNode)
         {
-            int nodeCount = graph.Length;
-            int[] distancesFromStart = new int[nodeCount];      //contains the distance of the node at index from start node
-            int[] cheapestPreviousPoint = new int[nodeCount];   //contains the index of the best point to reach the node at the current index
-                                                                //Dictionary<int, int> previousDict = new Dictionary<int, int>();
-            for (int i = 0; i < distancesFromStart.Length; i++)
-            {
-                //initialize distance vector with max value
-                distancesFromStart[i] = int.MaxValue;
-                //cheapestPreviousPoint[i] = 0;
-            }
-            distancesFromStart[rootNode.Index] = 0;
-            PriorityQueue<DijkstraElement> pq = new PriorityQueue<DijkstraElement>(true);
-            pq.Enqueue(new DijkstraElement(rootNode.Index, 0));
+            return SearchWithDijkstraAlgorithm(in rootNode);
+        }
 
-            //loop until there are nodes to check
-            GridNode currentNode;
-            while (!pq.empty())
+        /// <summary>
+        /// Executes Dijkstra traversal from the provided root node and caches distances and predecessors.
+        /// </summary>
+        private DijkstraInfo SearchWithDijkstraAlgorithm(in GridNode rootNode)
+        {
+            int nodeCount = graph != null ? graph.Length : 0;
+            int[] distancesFromStart = new int[nodeCount];
+            int[] cheapestPreviousPoint = new int[nodeCount];
+
+            for (int i = 0; i < nodeCount; i++)
             {
-                DijkstraElement currentNodeInfo = pq.dequeue_min();        //dequeue the node with the min distance from start
-                int currentNodeIndex = currentNodeInfo.nodeIndex;
-                currentNode = graph[currentNodeIndex];
+                distancesFromStart[i] = int.MaxValue;
+                cheapestPreviousPoint[i] = -1;
+            }
+
+            if (rootNode == null || nodeCount == 0)
+                return new DijkstraInfo(distancesFromStart, cheapestPreviousPoint);
+
+            distancesFromStart[rootNode.Index] = 0;
+            PriorityQueue<DijkstraElement> priorityQueue = new PriorityQueue<DijkstraElement>(true);
+            priorityQueue.Enqueue(new DijkstraElement(rootNode.Index, 0));
+
+            while (!priorityQueue.empty())
+            {
+                DijkstraElement currentNodeInfo = priorityQueue.dequeue_min();
+                int currentNodeIndex = currentNodeInfo.NodeIndex;
+                GridNode currentNode = graph[currentNodeIndex];
+                if (currentNode == null)
+                    continue;
 
                 currentNode.SortEdgesByCheapest();
-                //for every attached node, check distances
-                for (int i = 0; i < currentNode.edges.Count /*edge[nx].size()*/; i++)
-                {
-                    //next neighbour
-                    DijkstraElement connectedNodeInfo = new DijkstraElement(currentNode.edges[i].GetOppositeNode(currentNode).Index /*edge[nx][i]*/, currentNode.edges[i].weight /*cost[nx][i]*/);
+                List<GridEdge> edges = currentNode.edges;
+                int edgeCount = edges != null ? edges.Count : 0;
 
-                    //if next node distance is bigger than current distance + edge weight, update it and add it to the queue, doing this allow to check the other nodes attached to it for cost improvement
-                    if (distancesFromStart[connectedNodeInfo.nodeIndex] > distancesFromStart[currentNodeIndex] + currentNode.edges[i].weight)
+                for (int i = 0; i < edgeCount; i++)
+                {
+                    GridNode neighbour = edges[i].GetOppositeNode(currentNode);
+                    if (neighbour == null)
+                        continue;
+
+                    int currentDistance = distancesFromStart[currentNodeIndex];
+                    if (currentDistance == int.MaxValue)
+                        continue;
+
+                    int candidateDistance = currentDistance + edges[i].weight;
+                    if (candidateDistance < distancesFromStart[neighbour.Index])
                     {
-                        distancesFromStart[connectedNodeInfo.nodeIndex] = distancesFromStart[currentNodeIndex] + currentNode.edges[i].weight;
-                        cheapestPreviousPoint[connectedNodeInfo.nodeIndex] = currentNode.Index;
-                        //previousDict[tmp.nodeIndex] = tempNode.index;
-                        pq.Enqueue(new DijkstraElement(connectedNodeInfo.nodeIndex, distancesFromStart[connectedNodeInfo.nodeIndex]));
+                        distancesFromStart[neighbour.Index] = candidateDistance;
+                        cheapestPreviousPoint[neighbour.Index] = currentNode.Index;
+                        priorityQueue.Enqueue(new DijkstraElement(neighbour.Index, candidateDistance));
                     }
                 }
-                //will enter the if when all the roads to the end node are checked and the cheapest one is found (once the logic is here, all edges connected to endNode will be already checked)
-                if (currentNode == endNode)
-                    return new DijkstraInfo(distancesFromStart,/* previousDict,*/ cheapestPreviousPoint);
             }
 
-            return new DijkstraInfo(distancesFromStart,/* previousDict,*/ cheapestPreviousPoint);
+            DijkstraInfo info = new DijkstraInfo(distancesFromStart, cheapestPreviousPoint);
+            return info;
+        }
+
+        /// <summary>
+        /// Builds the shortest path from the world-space start position to the closest enemy goal node.
+        /// </summary>
+        public bool TryBuildPathToClosestGoal(Vector3 startPosition, List<Vector3> worldPathBuffer)
+        {
+            if (worldPathBuffer == null)
+                return false;
+
+            worldPathBuffer.Clear();
+            EnsureGridInitialized();
+
+            if (graph == null || graph.Length == 0)
+                return false;
+
+            Vector2Int startCoords;
+            if (!TryWorldToGrid(startPosition, out startCoords))
+                return false;
+
+            GridNode startNode;
+            if (!TryGetNode(startCoords, out startNode))
+                return false;
+
+            if (!startNode.Is(NodeState.Walkable))
+                return false;
+
+            DijkstraInfo searchResult = SearchWithDijkstraAlgorithm(in startNode);
+            int closestGoalIndex = ResolveClosestGoalIndex(in searchResult);
+            if (closestGoalIndex < 0)
+                return false;
+
+            ReconstructWorldPath(startNode.Index, closestGoalIndex, searchResult.Previous, worldPathBuffer);
+            return worldPathBuffer.Count > 0;
+        }
+
+        /// <summary>
+        /// Returns the index of the closest reachable enemy goal.
+        /// </summary>
+        private int ResolveClosestGoalIndex(in DijkstraInfo searchResult)
+        {
+            if (enemyGoalCells == null || enemyGoalCells.Length == 0)
+                return -1;
+
+            int bestIndex = -1;
+            int bestDistance = int.MaxValue;
+            int goalCount = enemyGoalCells.Length;
+
+            for (int i = 0; i < goalCount; i++)
+            {
+                GridNode goalNode;
+                if (!TryGetNode(enemyGoalCells[i], out goalNode))
+                    continue;
+
+                int[] distances = searchResult.Distances;
+                int distance = distances != null && goalNode.Index >= 0 && goalNode.Index < distances.Length ? distances[goalNode.Index] : int.MaxValue;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestIndex = goalNode.Index;
+                }
+            }
+
+            return bestIndex;
+        }
+
+        /// <summary>
+        /// Writes the world-space path from start to target into the provided buffer.
+        /// </summary>
+        private void ReconstructWorldPath(int startIndex, int targetIndex, in int[] previous, List<Vector3> worldPathBuffer)
+        {
+            if (previous == null || worldPathBuffer == null || graph == null || graph.Length == 0)
+                return;
+
+            int currentIndex = targetIndex;
+            int safety = graph.Length + 2;
+
+            bool reachedStart = false;
+
+            while (currentIndex >= 0 && currentIndex < graph.Length && safety > 0)
+            {
+                GridNode node = graph[currentIndex];
+                if (node == null)
+                    break;
+
+                worldPathBuffer.Add(node.WorldPosition);
+
+                if (currentIndex == startIndex)
+                {
+                    reachedStart = true;
+                    break;
+                }
+
+                currentIndex = previous[currentIndex];
+                safety--;
+            }
+
+            if (!reachedStart)
+            {
+                worldPathBuffer.Clear();
+                return;
+            }
+
+            worldPathBuffer.Reverse();
         }
 
         #endregion
@@ -452,6 +560,9 @@ namespace Grid
 
             if (Contains(enemyGoalCells, x, z))
                 state |= NodeState.IsEnemyGoal;
+
+            if (Contains(enemySpawnCells, x, z))
+                state |= NodeState.Walkable;
 
             return state;
         }
@@ -760,20 +871,24 @@ namespace Grid
         #endregion
 
         #region NestedClasses
+        /// <summary>
+        /// Container used to track node indices and costs within the priority queue.
+        /// </summary>
         private class DijkstraElement : IComparable<DijkstraElement>
         {
-            public int nodeIndex { get; private set; }
-            public int path_cost { get; private set; }
-            public DijkstraElement(int _nodeIndex, int _path_cost)
+            public int NodeIndex { get; private set; }
+            public int PathCost { get; private set; }
+
+            public DijkstraElement(int nodeIndex, int pathCost)
             {
-                nodeIndex = _nodeIndex;
-                path_cost = _path_cost;
+                NodeIndex = nodeIndex;
+                PathCost = pathCost;
             }
 
             //USED FOR QUEUE PRIORITY
             public int CompareTo(DijkstraElement other)
             {
-                return path_cost.CompareTo(other.path_cost);
+                return PathCost.CompareTo(other.PathCost);
             }
         }
         #endregion

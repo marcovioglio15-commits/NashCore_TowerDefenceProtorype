@@ -129,10 +129,6 @@ namespace Grid.Editor
             EditorGUILayout.PropertyField(cellSizeProperty);
             EditorGUILayout.PropertyField(floorLayerMaskProperty);
             EditorGUILayout.PropertyField(floorProbeHalfHeightProperty);
-            EditorGUILayout.PropertyField(start);
-            EditorGUILayout.PropertyField(end);
-            EditorGUILayout.PropertyField(path);
-            EditorGUILayout.PropertyField(enemy);
             EditorGUILayout.Space();
         }
 
