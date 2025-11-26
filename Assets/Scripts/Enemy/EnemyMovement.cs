@@ -39,6 +39,7 @@ public class EnemyMovement : MonoBehaviour
     private float spawnHeightOffset;
     private readonly Collider[] occupancyBuffer = new Collider[8];
     private float repathCooldownTimer;
+    private readonly HashSet<Vector2Int> spawnCells = new HashSet<Vector2Int>();
 
     #endregion
     #endregion
@@ -138,6 +139,7 @@ public class EnemyMovement : MonoBehaviour
             return;
         }
 
+        CacheSpawnCells();
         grid.TryBuildPathToClosestGoal(transform.position, worldPath);
     }
 
@@ -342,6 +344,9 @@ public class EnemyMovement : MonoBehaviour
     /// </summary>
     private bool IsWaypointBlocked(Vector3 waypointPosition)
     {
+        if (IsSpawnWaypoint(waypointPosition))
+            return false;
+
         float radius = ResolveOccupancyRadius();
         if (radius <= 0f)
             return false;
@@ -365,6 +370,42 @@ public class EnemyMovement : MonoBehaviour
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Synchronizes spawn coordinates used to ignore occupancy on spawn tiles.
+    /// </summary>
+    private void CacheSpawnCells()
+    {
+        if (grid == null)
+            return;
+
+        spawnCells.Clear();
+        Vector2Int[] spawnCoordinates = grid.GetEnemySpawnCoords();
+        if (spawnCoordinates == null || spawnCoordinates.Length == 0)
+            return;
+
+        int count = spawnCoordinates.Length;
+        for (int i = 0; i < count; i++)
+            spawnCells.Add(spawnCoordinates[i]);
+    }
+
+    /// <summary>
+    /// Determines if the provided waypoint belongs to a spawn cell.
+    /// </summary>
+    private bool IsSpawnWaypoint(Vector3 waypointPosition)
+    {
+        if (spawnCells.Count == 0)
+            return false;
+
+        if (grid == null)
+            return false;
+
+        Vector2Int coords;
+        if (!grid.TryWorldToGrid(waypointPosition, out coords))
+            return false;
+
+        return spawnCells.Contains(coords);
     }
 
     /// <summary>

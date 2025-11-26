@@ -19,9 +19,9 @@ namespace Scriptables.Turrets
         [SerializeField] private int maxScanColliders = 16;
         [Tooltip("Fallback cadence used whenever the definition cadence is missing or invalid.")]
         [SerializeField] private float fallbackCadenceSeconds = 0.35f;
-        [Tooltip("Cone width in degrees required before engaging automatic fire.")] 
+        [Tooltip("Cone width in degrees required before engaging automatic fire.")]
         [SerializeField] private float fireArcDegrees = 12f;
-        [Tooltip("Interval in seconds used to verify whether enemies remain within the fire area while locked.")] 
+        [Tooltip("Interval in seconds used to verify whether enemies remain within the fire area while locked.")]
         [SerializeField] private float fireLockCheckInterval = 0.2f;
         [Tooltip("Draws targeting debug gizmos when the turret is selected.")]
         [SerializeField] private bool drawDebugGizmos = true;
@@ -120,9 +120,12 @@ namespace Scriptables.Turrets
                 if (!ValidateActiveTarget(stats))
                     return;
 
-                direction = activeTarget.bounds.center - pooledTurret.transform.position;
-                if (direction.sqrMagnitude <= Mathf.Epsilon)
+                Vector3 rawOffset = activeTarget.bounds.center - pooledTurret.transform.position;
+                Vector3 horizontalOffset = ProjectToHorizontal(rawOffset);
+                if (horizontalOffset.sqrMagnitude <= Mathf.Epsilon)
                     return;
+
+                direction = horizontalOffset;
 
                 if (!IsWithinFireArc(direction))
                 {
@@ -149,12 +152,35 @@ namespace Scriptables.Turrets
 
         #region Targeting
         /// <summary>
-        /// Attempts to select the closest valid enemy within the fire arc.
+        /// Projects a world-space direction onto the horizontal plane.
+        /// </summary>
+        private Vector3 ProjectToHorizontal(Vector3 direction)
+        {
+            if (direction.sqrMagnitude <= Mathf.Epsilon)
+                return Vector3.zero;
+
+            Vector3 projected = Vector3.ProjectOnPlane(direction, Vector3.up);
+            if (projected.sqrMagnitude <= Mathf.Epsilon)
+                return Vector3.zero;
+
+            return projected;
+        }
+
+        /// <summary>
+        /// Attempts to select the closest valid enemy, preferring the current one if still inside the horizontal fire arc.
         /// </summary>
         private void AcquireTarget(TurretStatSnapshot stats)
         {
             if (pooledTurret == null || !pooledTurret.HasDefinition)
                 return;
+
+            if (activeTarget != null && ValidateActiveTarget(stats))
+            {
+                Vector3 currentOffset = activeTarget.bounds.center - pooledTurret.transform.position;
+                Vector3 currentHorizontal = ProjectToHorizontal(currentOffset);
+                if (currentHorizontal.sqrMagnitude > Mathf.Epsilon && IsWithinFireArc(currentHorizontal))
+                    return;
+            }
 
             int hits = Physics.OverlapSphereNonAlloc(pooledTurret.transform.position, stats.Range, scanBuffer, enemyLayers, QueryTriggerInteraction.Ignore);
             float closestDistance = float.MaxValue;
@@ -167,7 +193,11 @@ namespace Scriptables.Turrets
                     continue;
 
                 Vector3 offset = candidate.bounds.center - pooledTurret.transform.position;
-                float distance = offset.magnitude;
+                Vector3 horizontalOffset = ProjectToHorizontal(offset);
+                if (horizontalOffset.sqrMagnitude <= Mathf.Epsilon)
+                    continue;
+
+                float distance = horizontalOffset.magnitude;
                 if (distance <= stats.DeadZoneRadius || distance >= closestDistance)
                     continue;
 
@@ -232,6 +262,11 @@ namespace Scriptables.Turrets
 
             Transform yawTransform = pooledTurret.YawPivot != null ? pooledTurret.YawPivot : pooledTurret.transform;
             Vector3 forward = yawTransform.forward;
+            Vector3 forwardHorizontal = ProjectToHorizontal(forward);
+            if (forwardHorizontal.sqrMagnitude <= Mathf.Epsilon)
+                return false;
+
+            Vector3 forwardNormalized = forwardHorizontal.normalized;
             float maxAngle = Mathf.Max(1f, fireArcDegrees);
             float maxCos = Mathf.Cos(maxAngle * Mathf.Deg2Rad * 0.5f);
 
@@ -242,11 +277,16 @@ namespace Scriptables.Turrets
                     continue;
 
                 Vector3 offset = candidate.bounds.center - pooledTurret.transform.position;
-                float distance = offset.magnitude;
+                Vector3 horizontalOffset = ProjectToHorizontal(offset);
+                if (horizontalOffset.sqrMagnitude <= Mathf.Epsilon)
+                    continue;
+
+                float distance = horizontalOffset.magnitude;
                 if (distance <= stats.DeadZoneRadius || distance > stats.Range)
                     continue;
 
-                float dot = Vector3.Dot(forward.normalized, offset.normalized);
+                Vector3 offsetNormalized = horizontalOffset.normalized;
+                float dot = Vector3.Dot(forwardNormalized, offsetNormalized);
                 if (dot < maxCos)
                     continue;
 
@@ -257,16 +297,20 @@ namespace Scriptables.Turrets
         }
 
         /// <summary>
-        /// Resolves a valid target direction while fire lock is active without rotating the turret.
+        /// Resolves a valid target direction while fire lock is active without rotating the turret vertically.
         /// </summary>
         private bool TryResolveLockedDirection(TurretStatSnapshot stats, out Vector3 direction)
         {
             direction = Vector3.zero;
             if (activeTarget != null && ValidateActiveTarget(stats))
             {
-                direction = activeTarget.bounds.center - pooledTurret.transform.position;
-                if (direction.sqrMagnitude > Mathf.Epsilon && IsWithinFireArc(direction))
+                Vector3 offset = activeTarget.bounds.center - pooledTurret.transform.position;
+                Vector3 horizontalOffset = ProjectToHorizontal(offset);
+                if (horizontalOffset.sqrMagnitude > Mathf.Epsilon && IsWithinFireArc(horizontalOffset))
+                {
+                    direction = horizontalOffset;
                     return true;
+                }
             }
 
             Collider replacement;
@@ -278,7 +322,7 @@ namespace Scriptables.Turrets
         }
 
         /// <summary>
-        /// Selects any enemy within the fire arc to continue firing while locked.
+        /// Selects any enemy within the horizontal fire arc to continue firing while locked.
         /// </summary>
         private bool TryAcquireLockedTarget(TurretStatSnapshot stats, out Collider target, out Vector3 direction)
         {
@@ -292,10 +336,16 @@ namespace Scriptables.Turrets
                 return false;
 
             Transform yawTransform = pooledTurret.YawPivot != null ? pooledTurret.YawPivot : pooledTurret.transform;
-            Vector3 forward = yawTransform.forward.normalized;
+            Vector3 forward = yawTransform.forward;
+            Vector3 forwardHorizontal = ProjectToHorizontal(forward);
+            if (forwardHorizontal.sqrMagnitude <= Mathf.Epsilon)
+                return false;
+
+            Vector3 forwardNormalized = forwardHorizontal.normalized;
             float maxAngle = Mathf.Max(1f, fireArcDegrees);
             float maxCos = Mathf.Cos(maxAngle * Mathf.Deg2Rad * 0.5f);
             float bestDot = maxCos;
+
             for (int i = 0; i < hits; i++)
             {
                 Collider candidate = scanBuffer[i];
@@ -303,25 +353,29 @@ namespace Scriptables.Turrets
                     continue;
 
                 Vector3 offset = candidate.bounds.center - pooledTurret.transform.position;
-                float distance = offset.magnitude;
+                Vector3 horizontalOffset = ProjectToHorizontal(offset);
+                if (horizontalOffset.sqrMagnitude <= Mathf.Epsilon)
+                    continue;
+
+                float distance = horizontalOffset.magnitude;
                 if (distance <= stats.DeadZoneRadius || distance > stats.Range)
                     continue;
 
-                Vector3 offsetNormalized = offset.normalized;
-                float dot = Vector3.Dot(forward, offsetNormalized);
+                Vector3 offsetNormalized = horizontalOffset.normalized;
+                float dot = Vector3.Dot(forwardNormalized, offsetNormalized);
                 if (dot < bestDot)
                     continue;
 
                 bestDot = dot;
                 target = candidate;
-                direction = offset;
+                direction = horizontalOffset;
             }
 
             return target != null;
         }
 
         /// <summary>
-        /// Checks whether the provided direction lies within the configured fire arc.
+        /// Checks whether the provided direction lies within the configured horizontal fire arc.
         /// </summary>
         private bool IsWithinFireArc(Vector3 direction)
         {
@@ -329,11 +383,18 @@ namespace Scriptables.Turrets
             if (yawTransform == null)
                 return false;
 
-            Vector3 forward = yawTransform.forward.normalized;
-            Vector3 directionNormalized = direction.normalized;
+            Vector3 forward = yawTransform.forward;
+            Vector3 forwardHorizontal = ProjectToHorizontal(forward);
+            if (forwardHorizontal.sqrMagnitude <= Mathf.Epsilon)
+                return false;
+
+            Vector3 directionHorizontal = ProjectToHorizontal(direction);
+            if (directionHorizontal.sqrMagnitude <= Mathf.Epsilon)
+                return false;
+
             float maxAngle = Mathf.Max(1f, fireArcDegrees);
             float maxCos = Mathf.Cos(maxAngle * Mathf.Deg2Rad * 0.5f);
-            float dot = Vector3.Dot(forward, directionNormalized);
+            float dot = Vector3.Dot(forwardHorizontal.normalized, directionHorizontal.normalized);
             return dot >= maxCos;
         }
         #endregion

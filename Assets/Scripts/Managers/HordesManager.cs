@@ -39,6 +39,10 @@ public class HordesManager : Singleton<HordesManager>
     private bool hordeActive;
     private readonly List<SpawnPointDoor> spawnDoors = new List<SpawnPointDoor>();
     private readonly HashSet<SpawnPointDoor> previewDoorBuffer = new HashSet<SpawnPointDoor>();
+    private readonly List<WaveEnemyType> enemyTypesBuffer = new List<WaveEnemyType>();
+    private readonly List<WaveSpawnAssignment> spawnAssignmentBuffer = new List<WaveSpawnAssignment>();
+    private readonly List<Vector2Int> previewNodesBuffer = new List<Vector2Int>();
+    private readonly List<WaveEnemyTypeState> enemyTypeStatesBuffer = new List<WaveEnemyTypeState>();
     #endregion
 
     #region Properties
@@ -224,6 +228,8 @@ public class HordesManager : Singleton<HordesManager>
     /// </summary>
     private IReadOnlyList<Vector2Int> ResolveNextWaveSpawnNodes()
     {
+        previewNodesBuffer.Clear();
+
         if (hordes == null || hordes.Count == 0)
             return null;
 
@@ -239,6 +245,22 @@ public class HordesManager : Singleton<HordesManager>
         int waveCount = waves.Count;
         for (int i = 0; i < waveCount; i++)
         {
+            IReadOnlyList<WaveSpawnAssignment> assignments = waves[i].SpawnAssignments;
+            if (assignments != null && assignments.Count > 0)
+            {
+                previewNodesBuffer.Clear();
+                int assignmentCount = assignments.Count;
+                for (int a = 0; a < assignmentCount; a++)
+                {
+                    Vector2Int node = assignments[a].SpawnNode;
+                    if (!previewNodesBuffer.Contains(node))
+                        previewNodesBuffer.Add(node);
+                }
+
+                if (previewNodesBuffer.Count > 0)
+                    return previewNodesBuffer;
+            }
+
             IReadOnlyList<Vector2Int> nodes = waves[i].SpawnNodes;
             if (nodes != null && nodes.Count > 0)
                 return nodes;
@@ -287,30 +309,179 @@ public class HordesManager : Singleton<HordesManager>
     /// </summary>
     private IEnumerator SpawnWave(HordeWave wave)
     {
-        EnemyClassDefinition enemyDefinition = wave.EnemyDefinition;
-        if (enemyDefinition == null || enemyDefinition.EnemyPool == null)
+        List<WaveEnemyType> enemyTypes = BuildEnemyTypesForWave(wave);
+        if (enemyTypes.Count == 0)
             yield break;
 
-        IReadOnlyList<Vector2Int> spawnNodes = wave.SpawnNodes;
-        if (spawnNodes == null || spawnNodes.Count == 0)
+        List<WaveSpawnAssignment> spawnAssignments = BuildSpawnAssignments(wave, enemyTypes.Count);
+        if (spawnAssignments.Count == 0)
             yield break;
 
-        int count = Mathf.Max(1, wave.EnemyCount);
-        float cadence = Mathf.Max(0.05f, wave.SpawnCadenceSeconds);
-        int spawned = 0;
-        int nodeCount = spawnNodes.Count;
-        while (spawned < count)
+        enemyTypeStatesBuffer.Clear();
+        int totalRemaining = 0;
+        for (int i = 0; i < enemyTypes.Count; i++)
         {
-            for (int n = 0; n < nodeCount && spawned < count; n++)
+            WaveEnemyType type = enemyTypes[i];
+            int count = Mathf.Max(0, type.EnemyCount);
+            enemyTypeStatesBuffer.Add(new WaveEnemyTypeState(type.EnemyDefinition, type.RuntimeModifiers, type.SpawnOffset, count));
+            totalRemaining += count;
+        }
+
+        if (totalRemaining == 0)
+            yield break;
+
+        float cadence = Mathf.Max(0.05f, wave.SpawnCadenceSeconds);
+        while (totalRemaining > 0)
+        {
+            bool spawnedThisCycle = false;
+            int assignmentCount = spawnAssignments.Count;
+            for (int i = 0; i < assignmentCount && totalRemaining > 0; i++)
             {
-                Vector2Int coords = spawnNodes[n];
-                SpawnEnemyInstance(enemyDefinition, coords, wave.RuntimeModifiers, wave.SpawnOffset);
-                spawned++;
+                WaveSpawnAssignment assignment = spawnAssignments[i];
+                int typeIndex = ResolveNextEnemyTypeIndex(assignment, enemyTypeStatesBuffer);
+                if (typeIndex < 0)
+                    continue;
+
+                WaveEnemyTypeState state = enemyTypeStatesBuffer[typeIndex];
+                if (state.Definition == null || state.Definition.EnemyPool == null || state.RemainingCount <= 0)
+                    continue;
+
+                SpawnEnemyInstance(state.Definition, assignment.SpawnNode, state.Modifiers, state.SpawnOffset);
+                state.RemainingCount--;
+                enemyTypeStatesBuffer[typeIndex] = state;
+                totalRemaining--;
+                spawnedThisCycle = true;
             }
 
-            if (spawned < count)
+            if (totalRemaining > 0)
+            {
+                if (!spawnedThisCycle)
+                {
+                    Debug.LogWarning("Wave spawn aborted: remaining enemies could not be matched to any spawn assignments. Check per-spawner enemy type lists.");
+                    yield break;
+                }
+
                 yield return new WaitForSeconds(cadence);
+            }
         }
+    }
+
+    private List<WaveEnemyType> BuildEnemyTypesForWave(HordeWave wave)
+    {
+        enemyTypesBuffer.Clear();
+
+        IReadOnlyList<WaveEnemyType> configured = wave.EnemyTypes;
+        if (configured != null && configured.Count > 0)
+        {
+            int configuredCount = configured.Count;
+            for (int i = 0; i < configuredCount; i++)
+            {
+                WaveEnemyType type = configured[i];
+                if (type.EnemyDefinition != null && type.EnemyDefinition.EnemyPool != null && type.EnemyCount > 0)
+                    enemyTypesBuffer.Add(type);
+            }
+        }
+
+        if (enemyTypesBuffer.Count == 0 && wave.HasLegacyEnemy && wave.LegacyEnemyDefinition != null && wave.LegacyEnemyDefinition.EnemyPool != null && wave.LegacyEnemyCount > 0)
+            enemyTypesBuffer.Add(new WaveEnemyType(wave.LegacyEnemyDefinition, wave.LegacyRuntimeModifiers, wave.LegacyEnemyCount, wave.LegacySpawnOffset));
+
+        return enemyTypesBuffer;
+    }
+
+    private List<WaveSpawnAssignment> BuildSpawnAssignments(HordeWave wave, int enemyTypeCount)
+    {
+        spawnAssignmentBuffer.Clear();
+        if (enemyTypeCount <= 0)
+            return spawnAssignmentBuffer;
+
+        IReadOnlyList<WaveSpawnAssignment> configured = wave.SpawnAssignments;
+        if (configured != null && configured.Count > 0)
+        {
+            int configuredCount = configured.Count;
+            for (int i = 0; i < configuredCount; i++)
+            {
+                WaveSpawnAssignment assignment = configured[i];
+                List<int> allowedTypes = BuildValidatedAllowedTypes(assignment.AllowedEnemyTypeIndices, enemyTypeCount);
+                spawnAssignmentBuffer.Add(new WaveSpawnAssignment(assignment.SpawnNode, allowedTypes));
+            }
+        }
+
+        if (spawnAssignmentBuffer.Count == 0)
+        {
+            IReadOnlyList<Vector2Int> nodes = wave.SpawnNodes;
+            if (nodes != null && nodes.Count > 0)
+            {
+                List<int> defaultAllowedTypes = BuildDefaultAllowedTypes(enemyTypeCount);
+                int nodeCount = nodes.Count;
+                for (int i = 0; i < nodeCount; i++)
+                    spawnAssignmentBuffer.Add(new WaveSpawnAssignment(nodes[i], new List<int>(defaultAllowedTypes)));
+            }
+        }
+
+        return spawnAssignmentBuffer;
+    }
+
+    private List<int> BuildValidatedAllowedTypes(IReadOnlyList<int> source, int enemyTypeCount)
+    {
+        List<int> result = new List<int>();
+        if (enemyTypeCount <= 0)
+            return result;
+
+        if (source != null)
+        {
+            int sourceCount = source.Count;
+            for (int i = 0; i < sourceCount; i++)
+            {
+                int index = source[i];
+                if (index >= 0 && index < enemyTypeCount && !result.Contains(index))
+                    result.Add(index);
+            }
+        }
+
+        if (result.Count == 0)
+        {
+            for (int i = 0; i < enemyTypeCount; i++)
+                result.Add(i);
+        }
+
+        return result;
+    }
+
+    private List<int> BuildDefaultAllowedTypes(int enemyTypeCount)
+    {
+        List<int> result = new List<int>(enemyTypeCount);
+        for (int i = 0; i < enemyTypeCount; i++)
+            result.Add(i);
+        return result;
+    }
+
+    private int ResolveNextEnemyTypeIndex(in WaveSpawnAssignment assignment, List<WaveEnemyTypeState> states)
+    {
+        IReadOnlyList<int> allowedTypes = assignment.AllowedEnemyTypeIndices;
+        if (allowedTypes == null || allowedTypes.Count == 0)
+            return GetFirstAvailableEnemyTypeIndex(states);
+
+        int allowedCount = allowedTypes.Count;
+        for (int i = 0; i < allowedCount; i++)
+        {
+            int typeIndex = allowedTypes[i];
+            if (typeIndex >= 0 && typeIndex < states.Count && states[typeIndex].RemainingCount > 0)
+                return typeIndex;
+        }
+
+        return -1;
+    }
+
+    private int GetFirstAvailableEnemyTypeIndex(List<WaveEnemyTypeState> states)
+    {
+        int count = states.Count;
+        for (int i = 0; i < count; i++)
+        {
+            if (states[i].RemainingCount > 0)
+                return i;
+        }
+
+        return -1;
     }
 
     /// <summary>
@@ -401,6 +572,22 @@ public class HordesManager : Singleton<HordesManager>
        // Debug.LogError("Missing serialized variable 'cachedPlayerHealth' in HordesManager. Recurring to reflection as an emergency measure.");
         cachedPlayerHealth = FindFirstObjectByType<Player.PlayerHealth>(FindObjectsInactive.Exclude);
         return cachedPlayerHealth;
+    }
+
+    private struct WaveEnemyTypeState
+    {
+        public EnemyClassDefinition Definition;
+        public EnemyRuntimeModifiers Modifiers;
+        public Vector3 SpawnOffset;
+        public int RemainingCount;
+
+        public WaveEnemyTypeState(EnemyClassDefinition definition, EnemyRuntimeModifiers modifiers, Vector3 spawnOffset, int remainingCount)
+        {
+            Definition = definition;
+            Modifiers = modifiers;
+            SpawnOffset = spawnOffset;
+            RemainingCount = remainingCount;
+        }
     }
     #endregion
     #endregion

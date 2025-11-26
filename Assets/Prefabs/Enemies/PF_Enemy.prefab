@@ -9,9 +9,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1083952621850641058}
-  - component: {fileID: 561227867555821047}
   - component: {fileID: 332950177185882032}
   - component: {fileID: 5124621794192595975}
+  - component: {fileID: 8494824835523843202}
   m_Layer: 8
   m_Name: PF_Enemy
   m_TagString: Untagged
@@ -35,29 +35,6 @@ Transform:
   - {fileID: 9046785313275958286}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!136 &561227867555821047
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8274333885439304975}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &332950177185882032
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -88,6 +65,27 @@ MonoBehaviour:
   defaultDefinition: {fileID: 11400000, guid: 265477883ca3daa4690efc762154b3a6, type: 2}
   gizmoAnchor: {fileID: 1083952621850641058}
   specialEffectGizmoColor: {r: 0.95, g: 0.4, b: 0.2, a: 0.2}
+--- !u!135 &8494824835523843202
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8274333885439304975}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 256
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 1.15
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &8792744124600398821
 PrefabInstance:
   m_ObjectHideFlags: 0

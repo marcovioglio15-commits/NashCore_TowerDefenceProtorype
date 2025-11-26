@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e52ccebc17af8f140a62f694df124cd3, type: 3}
+  m_Name: EnemyPool2
+  m_EditorClassIdentifier: 
+  prefab: {fileID: 5124621794192595975, guid: bac81078257e040488ec4d0a90f8b24e, type: 3}
+  fallbackDefinition: {fileID: 11400000, guid: 6d791dbc9708eee4e8ef960e889d3f71, type: 2}
+  warmupCount: 6

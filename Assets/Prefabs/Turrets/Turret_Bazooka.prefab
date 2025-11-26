@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 2543766984240034746}
   - component: {fileID: -2308685442471462828}
   m_Layer: 6
-  m_Name: Turret_Cone
+  m_Name: Turret_Bazooka
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -130,7 +130,6 @@ MonoBehaviour:
   pitchRoot: {fileID: 6521521769185566705}
   muzzle: {fileID: 5276634281200093138}
   freeAimHiddenRenderers: []
-  freeAimYawTargets: []
   freeAimRotationFollowers: []
   rangeColor: {r: 0.15, g: 0.85, b: 1, a: 0.45}
   footprintColor: {r: 0.25, g: 0.9, b: 0.35, a: 0.25}
@@ -152,7 +151,7 @@ MonoBehaviour:
     m_Bits: 256
   maxScanColliders: 16
   fallbackCadenceSeconds: 0.35
-  fireArcDegrees: 12
+  fireArcDegrees: 360
   fireLockCheckInterval: 0.2
   drawDebugGizmos: 1
 --- !u!1 &7308459925188555251

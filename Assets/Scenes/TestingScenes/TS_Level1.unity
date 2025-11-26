@@ -11067,9 +11067,9 @@ Camera:
   m_NormalizedViewPortRect:
     serializedVersion: 2
     x: 0
-    y: 0.06756756
+    y: 0
     width: 1
-    height: 0.8648649
+    height: 1
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 60
@@ -67298,7 +67298,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyCount
-      value: 2
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[1].enemyCount
@@ -67310,11 +67310,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnOffset.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyDefinition
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].advanceDelaySeconds
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnCadenceSeconds
-      value: 2
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[1].advanceDelaySeconds
@@ -67323,6 +67331,10 @@ PrefabInstance:
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[1].spawnCadenceSeconds
       value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.size
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnNodes.Array.size
@@ -67342,11 +67354,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnNodes.Array.data[1].x
-      value: 1
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnNodes.Array.data[1].y
-      value: 17
+      value: 31
       objectReference: {fileID: 0}
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnNodes.Array.data[2].x
@@ -67363,6 +67375,78 @@ PrefabInstance:
     - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: hordes.Array.data[0].waves.Array.data[1].spawnNodes.Array.data[0].y
       value: 31
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[0].label
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[0].enemyCount
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[1].enemyCount
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[0].spawnOffset.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[1].spawnOffset.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[0].enemyDefinition
+      value: 
+      objectReference: {fileID: 11400000, guid: 265477883ca3daa4690efc762154b3a6, type: 2}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].enemyTypes.Array.data[1].enemyDefinition
+      value: 
+      objectReference: {fileID: 11400000, guid: 6d791dbc9708eee4e8ef960e889d3f71, type: 2}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[0].spawnNode.x
+      value: 9
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[0].spawnNode.y
+      value: 31
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[1].spawnNode.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[1].spawnNode.y
+      value: 17
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[0].allowedEnemyTypeIndices.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[1].allowedEnemyTypeIndices.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: 'hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[0].allowedEnemyTypeIndices.Array.data[0]'
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: 'hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[0].allowedEnemyTypeIndices.Array.data[1]'
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: 'hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[1].allowedEnemyTypeIndices.Array.data[0]'
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7541136066022165825, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
+      propertyPath: 'hordes.Array.data[0].waves.Array.data[0].spawnAssignments.Array.data[1].allowedEnemyTypeIndices.Array.data[1]'
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8724447564226994552, guid: 8b0eed981a09dab47b752a432b7d3ee2, type: 3}
       propertyPath: m_Name

@@ -129,6 +129,8 @@ MonoBehaviour:
   yawRoot: {fileID: 4364404316389822710}
   pitchRoot: {fileID: 4364404316389822710}
   muzzle: {fileID: 4187072906995496151}
+  freeAimHiddenRenderers: []
+  freeAimRotationFollowers: []
   rangeColor: {r: 0.15, g: 0.85, b: 1, a: 0.45}
   footprintColor: {r: 0.25, g: 0.9, b: 0.35, a: 0.25}
 --- !u!114 &-3591527946027530933
@@ -149,7 +151,7 @@ MonoBehaviour:
     m_Bits: 256
   maxScanColliders: 16
   fallbackCadenceSeconds: 0.35
-  fireArcDegrees: 12
+  fireArcDegrees: 360
   fireLockCheckInterval: 0.2
   drawDebugGizmos: 1
 --- !u!1 &2693720823322707903
