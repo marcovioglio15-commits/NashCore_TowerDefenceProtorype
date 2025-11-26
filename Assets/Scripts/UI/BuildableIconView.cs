@@ -19,7 +19,7 @@ namespace Managers.UI
         [SerializeField] private TextMeshProUGUI nameLabel;
         [Tooltip("Canvas group toggled to indicate drag state.")]
         [SerializeField] private CanvasGroup canvasGroup;
-        [Tooltip("Label showing the gold cost to build this turret.")]
+        [Tooltip("Label showing the Scrap cost to build this turret.")]
         [SerializeField] private TextMeshProUGUI costLabel;
         #endregion
 
@@ -55,7 +55,7 @@ namespace Managers.UI
         /// <summary>
         /// Returns true when the player can afford this turret or no resource tracker is available.
         /// </summary>
-        private bool HasAvailableGold()
+        private bool HasAvailableScrap()
         {
             PlayerResourcesManager resources = PlayerResourcesManager.Instance;
             if (resources == null || definition == null)
@@ -68,12 +68,12 @@ namespace Managers.UI
         /// <summary>
         /// Emits a global notification when the drag cannot start due to insufficient funds.
         /// </summary>
-        private void NotifyInsufficientGold()
+        private void NotifyInsufficientScrap()
         {
             int cost = definition != null ? Mathf.Max(0, definition.Economy.BuildCost) : 0;
             PlayerResourcesManager resources = PlayerResourcesManager.Instance;
-            int currentGold = resources != null ? resources.CurrentGold : 0;
-            EventsManager.InvokePlayerGoldInsufficient(currentGold, cost);
+            int currentScrap = resources != null ? resources.CurrentScrap : 0;
+            EventsManager.InvokePlayerScrapInsufficient(currentScrap, cost);
             if (canvasGroup != null)
                 canvasGroup.alpha = 1f;
         }
@@ -88,9 +88,9 @@ namespace Managers.UI
             if (definition == null)
                 return;
 
-            if (!HasAvailableGold())
+            if (!HasAvailableScrap())
             {
-                NotifyInsufficientGold();
+                NotifyInsufficientScrap();
                 return;
             }
 
@@ -117,10 +117,10 @@ namespace Managers.UI
         /// </summary>
         public void OnPointerDown(PointerEventData eventData)
         {
-            if (HasAvailableGold())
+            if (HasAvailableScrap())
                 return;
 
-            NotifyInsufficientGold();
+            NotifyInsufficientScrap();
         }
 
         /// <summary>

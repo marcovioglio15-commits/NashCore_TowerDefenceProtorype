@@ -144,9 +144,9 @@ namespace Player.Inventory
             if (!buildableTurrets.Contains(definition))
                 return;
 
-            if (!relocatingExisting && !HasSufficientGold(definition))
+            if (!relocatingExisting && !HasSufficientScrap(definition))
             {
-                BroadcastInsufficientGold(definition);
+                BroadcastInsufficientScrap(definition);
                 return;
             }
 
@@ -377,10 +377,10 @@ namespace Player.Inventory
                 return;
             }
 
-            if (!relocatingExisting && !HasSufficientGold(activeDefinition))
+            if (!relocatingExisting && !HasSufficientScrap(activeDefinition))
             {
-                BroadcastInsufficientGold(activeDefinition);
-                BuildPlacementResult fail = new BuildPlacementResult(activeDefinition, false, "Insufficient gold", previewWorldPosition, previewCell);
+                BroadcastInsufficientScrap(activeDefinition);
+                BuildPlacementResult fail = new BuildPlacementResult(activeDefinition, false, "Insufficient Scrap", previewWorldPosition, previewCell);
                 EventsManager.InvokeBuildablePlacementResolved(fail);
                 return;
             }
@@ -402,7 +402,7 @@ namespace Player.Inventory
             EventsManager.InvokeBuildablePlacementResolved(result);
 
             if (success && !relocatingExisting)
-                SpendGold(activeDefinition);
+                SpendScrap(activeDefinition);
         }
 
         /// <summary>
@@ -464,9 +464,9 @@ namespace Player.Inventory
         }
 
         /// <summary>
-        /// Returns true when the player has enough gold to place the provided definition.
+        /// Returns true when the player has enough Scrap to place the provided definition.
         /// </summary>
-        private bool HasSufficientGold(TurretClassDefinition definition)
+        private bool HasSufficientScrap(TurretClassDefinition definition)
         {
             if (definition == null)
                 return false;
@@ -481,7 +481,7 @@ namespace Player.Inventory
         /// <summary>
         /// Deducts the build cost for the provided definition.
         /// </summary>
-        private void SpendGold(TurretClassDefinition definition)
+        private void SpendScrap(TurretClassDefinition definition)
         {
             if (playerResources == null || definition == null)
                 return;
@@ -491,13 +491,13 @@ namespace Player.Inventory
         }
 
         /// <summary>
-        /// Triggers an insufficient gold notification for UI feedback.
+        /// Triggers an insufficient Scrap notification for UI feedback.
         /// </summary>
-        private void BroadcastInsufficientGold(TurretClassDefinition definition)
+        private void BroadcastInsufficientScrap(TurretClassDefinition definition)
         {
             int cost = definition != null ? Mathf.Max(0, definition.Economy.BuildCost) : 0;
-            int currentGold = playerResources != null ? playerResources.CurrentGold : 0;
-            EventsManager.InvokePlayerGoldInsufficient(currentGold, cost);
+            int currentScrap = playerResources != null ? playerResources.CurrentScrap : 0;
+            EventsManager.InvokePlayerScrapInsufficient(currentScrap, cost);
         }
         #endregion
 

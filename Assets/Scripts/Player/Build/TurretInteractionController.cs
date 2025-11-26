@@ -664,7 +664,7 @@ namespace Player.Build
         /// </summary>
         private void HandleGamePhaseChanged(GamePhase phase)
         {
-            SetPhaseCapabilities(phase == GamePhase.Building, phase == GamePhase.Combat);
+            SetPhaseCapabilities(phase == GamePhase.Building, phase == GamePhase.Defence);
             if (!allowReposition)
                 ResetHoldState();
             if (!allowHoldFeedback)
@@ -708,7 +708,7 @@ namespace Player.Build
             if (manager == null)
                 return;
 
-            SetPhaseCapabilities(manager.CurrentPhase == GamePhase.Building, manager.CurrentPhase == GamePhase.Combat);
+            SetPhaseCapabilities(manager.CurrentPhase == GamePhase.Building, manager.CurrentPhase == GamePhase.Defence);
         }
         #endregion
         #endregion

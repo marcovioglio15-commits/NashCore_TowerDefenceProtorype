@@ -118,19 +118,19 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     [SerializeField] private bool phaseBannerAlwaysVisible;
     [Tooltip("Text displayed when entering the build phase.")]
     [SerializeField] private string buildingPhaseLabel = "Building Phase";
-    [Tooltip("Text displayed when entering the combat phase.")]
-    [SerializeField] private string combatPhaseLabel = "Combat Phase";
+    [Tooltip("Text displayed when entering the defence phase.")]
+    [SerializeField] private string combatPhaseLabel = "Defence Phase";
 
-    [Tooltip("Label displaying the player's current gold balance.")]
+    [Tooltip("Label displaying the player's current Scrap balance.")]
     [Header("Economy")]
-    [SerializeField] private TextMeshProUGUI goldLabel;
-    [Tooltip("Color applied to the gold label when funds are insufficient.")]
+    [SerializeField] private TextMeshProUGUI ScrapLabel;
+    [Tooltip("Color applied to the Scrap label when funds are insufficient.")]
     [Header("Economy Feedback")]
-    [SerializeField] private Color goldInsufficientColor = new Color(0.9f, 0.25f, 0.25f, 1f);
-    [Tooltip("Seconds spent pulsing the gold label on insufficient funds.")]
-    [SerializeField] private float goldInsufficientPulseSeconds = 0.4f;
-    [Tooltip("Curve controlling the intensity of the gold pulse feedback.")]
-    [SerializeField] private AnimationCurve goldInsufficientCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+    [SerializeField] private Color ScrapInsufficientColor = new Color(0.9f, 0.25f, 0.25f, 1f);
+    [Tooltip("Seconds spent pulsing the Scrap label on insufficient funds.")]
+    [SerializeField] private float ScrapInsufficientPulseSeconds = 0.4f;
+    [Tooltip("Curve controlling the intensity of the Scrap pulse feedback.")]
+    [SerializeField] private AnimationCurve ScrapInsufficientCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
     #endregion
 
     #region Runtime
@@ -147,8 +147,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     private bool freeAimUiVisible;
     private Coroutine phaseBannerRoutine;
     private bool buildUiVisible = true;
-    private Coroutine goldPulseRoutine;
-    private Color goldLabelBaseColor = Color.white;
+    private Coroutine ScrapPulseCoroutine;
+    private Color ScrapLabelBaseColor = Color.white;
     private bool pauseActive;
     private bool endingDisplayed;
     private int defeatedHordesCount;
@@ -174,8 +174,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimStarted += HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded += HandleFreeAimEnded;
         EventsManager.GamePhaseChanged += HandleGamePhaseChanged;
-        EventsManager.PlayerGoldChanged += HandlePlayerGoldChanged;
-        EventsManager.PlayerGoldInsufficient += HandlePlayerGoldInsufficient;
+        EventsManager.PlayerScrapChanged += HandlePlayerScrapChanged;
+        EventsManager.PlayerScrapInsufficient += HandlePlayerScrapInsufficient;
         EventsManager.GameVictoryAchieved += HandleGameVictoryAchieved;
         EventsManager.GameDefeatTriggered += HandleGameDefeatTriggered;
         EventsManager.IncreaseCompletedHordesCounter += HandleCompletedHordesIncreased;
@@ -191,8 +191,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EnsureExitHandler();
         AttachPhaseButtonListener();
         SyncPhaseUiState();
-        CacheGoldLabelColor();
-        SyncGoldLabel();
+        CacheScrapLabelColor();
+        SyncScrapLabel();
         AttachPauseButtonListeners();
         AttachEndingButtonListeners();
         HidePausePanel();
@@ -217,8 +217,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
         EventsManager.TurretFreeAimStarted -= HandleFreeAimStarted;
         EventsManager.TurretFreeAimEnded -= HandleFreeAimEnded;
         EventsManager.GamePhaseChanged -= HandleGamePhaseChanged;
-        EventsManager.PlayerGoldChanged -= HandlePlayerGoldChanged;
-        EventsManager.PlayerGoldInsufficient -= HandlePlayerGoldInsufficient;
+        EventsManager.PlayerScrapChanged -= HandlePlayerScrapChanged;
+        EventsManager.PlayerScrapInsufficient -= HandlePlayerScrapInsufficient;
         EventsManager.GameVictoryAchieved -= HandleGameVictoryAchieved;
         EventsManager.GameDefeatTriggered -= HandleGameDefeatTriggered;
         EventsManager.IncreaseCompletedHordesCounter -= HandleCompletedHordesIncreased;
@@ -233,8 +233,8 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             phaseBannerRoutine = null;
         }
 
-        StopGoldPulse();
-        RestoreGoldLabelColor();
+        StopScrapPulse();
+        RestoreScrapLabelColor();
         DetachPauseButtonListeners();
         DetachEndingButtonListeners();
         HidePausePanel();
@@ -757,6 +757,7 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
     {
         bool building = phase == GamePhase.Building;
         SetBuildUiVisibility(building);
+        UpdatePhaseToggleVisibility(building);
         if (building)
         {
             CancelFreeAimExitHold();
@@ -920,8 +921,26 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             return;
 
         GameManager manager = GameManager.Instance;
-        bool canToggle = manager == null || manager.CanRequestPhaseChange;
+        bool canToggle = manager == null ? true : manager.CanRequestPhaseChange;
         phaseToggleButton.interactable = canToggle;
+    }
+
+    /// <summary>
+    /// Enables or disables the phase toggle button visuals based on the active phase.
+    /// </summary>
+    private void UpdatePhaseToggleVisibility(bool buildingPhase)
+    {
+        if (phaseToggleButton == null)
+            return;
+
+        GameObject buttonObject = phaseToggleButton.gameObject;
+        if (buttonObject != null && buttonObject.activeSelf != buildingPhase)
+            buttonObject.SetActive(buildingPhase);
+
+        if (buildingPhase)
+            UpdatePhaseToggleInteractable();
+        else
+            phaseToggleButton.interactable = false;
     }
 
     /// <summary>
@@ -934,117 +953,117 @@ public class UIManager_MainScene : Singleton<UIManager_MainScene>
             return;
 
         ApplyPhaseUiState(manager.CurrentPhase, false);
-        UpdatePhaseToggleInteractable();
+        UpdatePhaseToggleVisibility(manager.CurrentPhase == GamePhase.Building);
     }
     #endregion
 
     #region Economy UI
     /// <summary>
-    /// Updates the gold label when the player's balance changes.
+    /// Updates the Scrap label when the player's balance changes.
     /// </summary>
-    private void HandlePlayerGoldChanged(int gold)
+    private void HandlePlayerScrapChanged(int Scrap)
     {
-        UpdateGoldLabel(gold);
+        UpdateScrapLabel(Scrap);
     }
 
     /// <summary>
-    /// Plays the insufficient gold feedback when a build attempt is blocked.
+    /// Plays the insufficient Scrap feedback when a build attempt is blocked.
     /// </summary>
-    private void HandlePlayerGoldInsufficient(int currentGold, int requiredGold)
+    private void HandlePlayerScrapInsufficient(int currentScrap, int requiredScrap)
     {
-        TriggerGoldPulse();
+        TriggerScrapPulse();
     }
 
     /// <summary>
-    /// Requests the current balance to populate the gold label at startup.
+    /// Requests the current balance to populate the Scrap label at startup.
     /// </summary>
-    private void SyncGoldLabel()
+    private void SyncScrapLabel()
     {
         PlayerResourcesManager resources = PlayerResourcesManager.Instance;
         if (resources == null)
             return;
 
-        UpdateGoldLabel(resources.CurrentGold);
+        UpdateScrapLabel(resources.CurrentScrap);
     }
 
     /// <summary>
-    /// Writes the provided gold amount into the HUD label.
+    /// Writes the provided Scrap amount into the HUD label.
     /// </summary>
-    private void UpdateGoldLabel(int gold)
+    private void UpdateScrapLabel(int Scrap)
     {
-        if (goldLabel == null)
+        if (ScrapLabel == null)
             return;
 
-        goldLabel.text = $"CURRENT GOLD : {gold}";
+        ScrapLabel.text = $"CURRENT Scrap : {Scrap}";
     }
 
     /// <summary>
-    /// Stores the baseline gold label color for future feedback resets.
+    /// Stores the baseline Scrap label color for future feedback resets.
     /// </summary>
-    private void CacheGoldLabelColor()
+    private void CacheScrapLabelColor()
     {
-        if (goldLabel == null)
+        if (ScrapLabel == null)
             return;
 
-        goldLabelBaseColor = goldLabel.color;
+        ScrapLabelBaseColor = ScrapLabel.color;
     }
 
     /// <summary>
-    /// Restores the gold label to its cached base color.
+    /// Restores the Scrap label to its cached base color.
     /// </summary>
-    private void RestoreGoldLabelColor()
+    private void RestoreScrapLabelColor()
     {
-        if (goldLabel == null)
+        if (ScrapLabel == null)
             return;
 
-        goldLabel.color = goldLabelBaseColor;
+        ScrapLabel.color = ScrapLabelBaseColor;
     }
 
     /// <summary>
-    /// Starts or restarts the pulse feedback coroutine on the gold label.
+    /// Starts or restarts the pulse feedback coroutine on the Scrap label.
     /// </summary>
-    private void TriggerGoldPulse()
+    private void TriggerScrapPulse()
     {
-        if (goldLabel == null)
+        if (ScrapLabel == null)
             return;
 
-        if (goldPulseRoutine != null)
-            StopCoroutine(goldPulseRoutine);
+        if (ScrapPulseCoroutine != null)
+            StopCoroutine(ScrapPulseCoroutine);
 
-        goldPulseRoutine = StartCoroutine(GoldPulseRoutine());
+        ScrapPulseCoroutine = StartCoroutine(ScrapPulseRoutine());
     }
 
     /// <summary>
-    /// Stops any running gold pulse feedback.
+    /// Stops any running Scrap pulse feedback.
     /// </summary>
-    private void StopGoldPulse()
+    private void StopScrapPulse()
     {
-        if (goldPulseRoutine == null)
+        if (ScrapPulseCoroutine == null)
             return;
 
-        StopCoroutine(goldPulseRoutine);
-        goldPulseRoutine = null;
+        StopCoroutine(ScrapPulseCoroutine);
+        ScrapPulseCoroutine = null;
     }
 
     /// <summary>
-    /// Animates the gold label color to highlight insufficient funds.
+    /// Animates the Scrap label color to highlight insufficient funds.
     /// </summary>
-    private IEnumerator GoldPulseRoutine()
+    private IEnumerator ScrapPulseRoutine()
     {
-        RestoreGoldLabelColor();
-        float duration = Mathf.Max(0.05f, goldInsufficientPulseSeconds);
+        RestoreScrapLabelColor();
+        float duration = Mathf.Max(0.05f, ScrapInsufficientPulseSeconds);
         float timer = 0f;
         while (timer < duration)
         {
             timer += Time.unscaledDeltaTime;
             float normalized = duration > 0f ? Mathf.Clamp01(timer / duration) : 1f;
-            float curve = goldInsufficientCurve != null ? Mathf.Clamp01(goldInsufficientCurve.Evaluate(normalized)) : normalized;
-            goldLabel.color = Color.Lerp(goldLabelBaseColor, goldInsufficientColor, curve);
+            float curve = ScrapInsufficientCurve != null ? Mathf.Clamp01(ScrapInsufficientCurve.Evaluate(normalized)) : normalized;
+            ScrapLabel.color = Color.Lerp(ScrapLabelBaseColor, ScrapInsufficientColor, curve);
             yield return null;
         }
 
-        RestoreGoldLabelColor();
-        goldPulseRoutine = null;
+        RestoreScrapLabelColor();
+        ScrapPulseCoroutine = null;
     }
     #endregion
 

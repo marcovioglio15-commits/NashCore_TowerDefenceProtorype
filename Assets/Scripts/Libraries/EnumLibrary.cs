@@ -21,10 +21,10 @@ public enum TurretFirePattern
 }
 
 /// <summary>
-/// Describes high-level gameplay phases used to gate build and combat systems.
+/// Describes high-level gameplay phases used to gate build and defence systems.
 /// </summary>
 public enum GamePhase
 {
     Building,
-    Combat
+    Defence
 }

@@ -1,31 +1,31 @@
 using UnityEngine;
 
 /// <summary>
-/// Tracks the player's gold currency, handles spend and earn requests, and broadcasts updates.
+/// Tracks the player's Scrap currency, handles spend and earn requests, and broadcasts updates.
 /// </summary>
 public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
 {
     #region Variables And Properties
     #region Serialized Fields
-    [Header("Gold Settings")]
-    [Tooltip("Amount of gold granted to the player at the start of the session.")]
-    [SerializeField] private int startingGold = 500;
-    [Tooltip("Maximum gold allowed; zero means no cap.")]
-    [SerializeField] private int goldCap;
+    [Header("Scrap Settings")]
+    [Tooltip("Amount of Scrap granted to the player at the start of the session.")]
+    [SerializeField] private int startingScrap = 500;
+    [Tooltip("Maximum Scrap allowed; zero means no cap.")]
+    [SerializeField] private int ScrapCap;
     #endregion
 
     #region Runtime
-    private int currentGold;
+    private int currentScrap;
     #endregion
     #endregion
 
     #region Properties
     /// <summary>
-    /// Current gold balance.
+    /// Current Scrap balance.
     /// </summary>
-    public int CurrentGold
+    public int CurrentScrap
     {
-        get { return currentGold; }
+        get { return currentScrap; }
     }
     #endregion
 
@@ -38,7 +38,7 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
     {
         base.Awake();
         ClampConfiguration();
-        currentGold = Mathf.Max(0, startingGold);
+        currentScrap = Mathf.Max(0, startingScrap);
     }
 
     /// <summary>
@@ -47,8 +47,8 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
     protected override void OnEnable()
     {
         base.OnEnable();
-        EventsManager.PlayerGoldEarned += HandleGoldEarned;
-        BroadcastGold();
+        EventsManager.PlayerScrapEarned += HandleScrapEarned;
+        BroadcastScrap();
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
     /// </summary>
     private void OnDisable()
     {
-        EventsManager.PlayerGoldEarned -= HandleGoldEarned;
+        EventsManager.PlayerScrapEarned -= HandleScrapEarned;
     }
     #endregion
 
@@ -66,11 +66,11 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
     /// </summary>
     public bool CanAfford(int cost)
     {
-        return cost <= currentGold;
+        return cost <= currentScrap;
     }
 
     /// <summary>
-    /// Attempts to spend gold; returns false if insufficient funds.
+    /// Attempts to spend Scrap; returns false if insufficient funds.
     /// </summary>
     public bool TrySpend(int cost)
     {
@@ -80,24 +80,24 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
         if (!CanAfford(cost))
             return false;
 
-        currentGold -= cost;
-        BroadcastGold();
+        currentScrap -= cost;
+        BroadcastScrap();
         return true;
     }
 
     /// <summary>
-    /// Adds gold and clamps to the configured cap.
+    /// Adds Scrap and clamps to the configured cap.
     /// </summary>
     public void Earn(int amount)
     {
         if (amount == 0)
             return;
 
-        currentGold = Mathf.Max(0, currentGold + amount);
-        if (goldCap > 0)
-            currentGold = Mathf.Min(currentGold, goldCap);
+        currentScrap = Mathf.Max(0, currentScrap + amount);
+        if (ScrapCap > 0)
+            currentScrap = Mathf.Min(currentScrap, ScrapCap);
 
-        BroadcastGold();
+        BroadcastScrap();
     }
     #endregion
 
@@ -105,17 +105,17 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
     /// <summary>
     /// Responds to external earn events.
     /// </summary>
-    private void HandleGoldEarned(int amount)
+    private void HandleScrapEarned(int amount)
     {
         Earn(amount);
     }
 
     /// <summary>
-    /// Emits the current gold balance through the global event pipeline.
+    /// Emits the current Scrap balance through the global event pipeline.
     /// </summary>
-    private void BroadcastGold()
+    private void BroadcastScrap()
     {
-        EventsManager.InvokePlayerGoldChanged(currentGold);
+        EventsManager.InvokePlayerScrapChanged(currentScrap);
     }
 
     /// <summary>
@@ -123,11 +123,11 @@ public class PlayerResourcesManager : Singleton<PlayerResourcesManager>
     /// </summary>
     private void ClampConfiguration()
     {
-        if (startingGold < 0)
-            startingGold = 0;
+        if (startingScrap < 0)
+            startingScrap = 0;
 
-        if (goldCap < 0)
-            goldCap = 0;
+        if (ScrapCap < 0)
+            ScrapCap = 0;
     }
     #endregion
     #endregion

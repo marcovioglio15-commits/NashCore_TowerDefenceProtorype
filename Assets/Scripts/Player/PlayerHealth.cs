@@ -139,6 +139,25 @@ namespace Player
         {
             damageEnabled = enabled;
         }
+
+        /// <summary>
+        /// Halves the current health when contact effects are applied.
+        /// </summary>
+        public void ApplyShieldHalvingEffect()
+        {
+            if (!damageEnabled || defeated)
+                return;
+
+            float halved = Mathf.Max(0f, currentHealth * 0.5f);
+            if (Mathf.Approximately(halved, currentHealth))
+                return;
+
+            currentHealth = halved;
+            BroadcastHealth();
+
+            if (currentHealth <= 0f)
+                HandleDefeat();
+        }
         #endregion
 
         #region Internal

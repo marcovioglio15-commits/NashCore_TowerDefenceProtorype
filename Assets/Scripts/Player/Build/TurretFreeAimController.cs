@@ -306,7 +306,7 @@ namespace Player.Build
         /// </summary>
         private void HandleGamePhaseChanged(GamePhase phase)
         {
-            phaseAllowsFreeAim = phase == GamePhase.Combat;
+            phaseAllowsFreeAim = phase == GamePhase.Defence;
             if (!phaseAllowsFreeAim && freeAimActive)
                 ExitFreeAim();
         }
@@ -1212,6 +1212,8 @@ namespace Player.Build
                     continue;
 
                 GameObject rendererObject = renderer.gameObject;
+                if(rendererObject == null)
+                    continue;
                 int rendererLayerMask = 1 << rendererObject.layer;
                 bool layerIncluded = (maskValue & rendererLayerMask) != 0;
                 if (!layerIncluded)
@@ -1411,7 +1413,7 @@ namespace Player.Build
             if (manager == null)
                 return;
 
-            phaseAllowsFreeAim = manager.CurrentPhase == GamePhase.Combat;
+            phaseAllowsFreeAim = manager.CurrentPhase == GamePhase.Defence;
             if (!phaseAllowsFreeAim && freeAimActive)
                 ExitFreeAim();
         }

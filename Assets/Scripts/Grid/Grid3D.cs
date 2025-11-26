@@ -58,6 +58,10 @@ namespace Grid
         [Tooltip("Grid coordinates used as enemy spawn points.")]
         private Vector2Int[] enemySpawnCells;
 
+        [Tooltip("Optional spawn point bindings assigned to enemy spawn cells for precise placement.")]
+        [SerializeField]
+        private SpawnNodeBinding[] spawnNodeBindings;
+
         [Header("Gizmos")]
 
         [SerializeField]
@@ -121,6 +125,19 @@ namespace Grid
             [Tooltip("Renderers hidden while the turret on this node is possessed.")]
             public Renderer[] HiddenWalls;
         }
+
+        [System.Serializable]
+        /// <summary>
+        /// Binding that overrides the spawn position and rotation for a given spawn node.
+        /// </summary>
+        public struct SpawnNodeBinding
+        {
+            [Tooltip("Spawn node coordinate associated with this binding.")]
+            public Vector2Int Coordinates;
+
+            [Tooltip("Anchor used for spawning enemies; position and rotation are forwarded.")]
+            public Transform SpawnPoint;
+        }
         #endregion
 
         #region Properties
@@ -179,6 +196,7 @@ namespace Grid
             ClampArrayCoords(enemyGoalCells);
             ClampArrayCoords(enemySpawnCells);
             ClampBindingCoords();
+            ClampSpawnBindingCoords();
 
             InitializeGrid();
         }
@@ -331,6 +349,29 @@ namespace Grid
                 if (clamped.y >= gridSizeZ)
                     clamped.y = gridSizeZ - 1;
                 buildableWallBindings[i].Coordinates = clamped;
+            }
+        }
+
+        /// <summary>
+        /// Ensures spawn binding coordinates stay within grid bounds.
+        /// </summary>
+        private void ClampSpawnBindingCoords()
+        {
+            if (spawnNodeBindings == null)
+                return;
+
+            for (int i = 0; i < spawnNodeBindings.Length; i++)
+            {
+                Vector2Int clamped = spawnNodeBindings[i].Coordinates;
+                if (clamped.x < 0)
+                    clamped.x = 0;
+                if (clamped.y < 0)
+                    clamped.y = 0;
+                if (clamped.x >= gridSizeX)
+                    clamped.x = gridSizeX - 1;
+                if (clamped.y >= gridSizeZ)
+                    clamped.y = gridSizeZ - 1;
+                spawnNodeBindings[i].Coordinates = clamped;
             }
         }
 
@@ -526,6 +567,23 @@ namespace Grid
             {
                 if (buildableWallBindings[i].Coordinates == coords)
                     return buildableWallBindings[i].HiddenWalls;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the spawn point anchor associated with a spawn coordinate when present.
+        /// </summary>
+        public Transform GetSpawnPoint(Vector2Int coords)
+        {
+            if (spawnNodeBindings == null || spawnNodeBindings.Length == 0)
+                return null;
+
+            for (int i = 0; i < spawnNodeBindings.Length; i++)
+            {
+                if (spawnNodeBindings[i].Coordinates == coords)
+                    return spawnNodeBindings[i].SpawnPoint;
             }
 
             return null;

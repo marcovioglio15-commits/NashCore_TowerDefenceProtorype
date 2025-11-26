@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 489fd5302b9fd3b40b83d85274960d1e, type: 3}
+  m_Name: EnemyClass
+  m_EditorClassIdentifier: 
+  key: enemy_default
+  displayName: New Enemy
+  description: 
+  icon: {fileID: 0}
+  enemyPrefab: {fileID: 0}
+  enemyPool: {fileID: 11400000, guid: 48e5c1e526e2f564999d2cde4072b2a5, type: 2}
+  durability:
+    maxHealth: 100
+    damageNegationPercent: 0
+  mobility:
+    movementSpeed: 2.5
+  offense:
+    shieldDamage: 15
+  rewards:
+    scrapValue: 10
+  contact:
+    effect: 0
+    contactRange: 1

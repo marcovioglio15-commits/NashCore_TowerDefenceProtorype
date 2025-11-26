@@ -12,9 +12,7 @@ public class GameManager : Singleton<GameManager>
     [Header("Phase Flow")]
     [Tooltip("Phase used at startup before the player triggers any phase changes.")]
     [SerializeField] private GamePhase initialPhase = GamePhase.Building;
-    [Tooltip("Maximum number of phase switches allowed. Zero means the flow can switch indefinitely.")]
-    [SerializeField] private int maxPhaseSwitches;
-    [Tooltip("Placement inventory that is toggled on during the build phase and silenced during combat.")]
+    [Tooltip("Placement inventory that is toggled on during the build phase and silenced during defence.")]
     [SerializeField] private BuildablesInventory buildablesInventory;
     [Tooltip("Turret interaction controller used for reposition and possession gating.")]
     [SerializeField] private TurretInteractionController turretInteractionController;
@@ -22,7 +20,6 @@ public class GameManager : Singleton<GameManager>
 
     #region Runtime
     private GamePhase currentPhase;
-    private int phaseSwitchCount;
     private bool isPaused;
     #endregion
     #endregion
@@ -37,16 +34,19 @@ public class GameManager : Singleton<GameManager>
     }
 
     /// <summary>
-    /// True when another phase switch is permitted under the current cap.
+    /// True when another phase switch is permitted by external flow controllers.
     /// </summary>
     public bool CanRequestPhaseChange
     {
         get
         {
-            if (maxPhaseSwitches <= 0)
-                return true;
+            bool buildingPhase = currentPhase == GamePhase.Building;
+            bool hordesAvailable = true;
+            HordesManager hordeManager = HordesManager.Instance;
+            if (hordeManager != null)
+                hordesAvailable = hordeManager.HasPendingHordes;
 
-            return phaseSwitchCount < maxPhaseSwitches;
+            return buildingPhase && hordesAvailable;
         }
     }
 
@@ -62,12 +62,11 @@ public class GameManager : Singleton<GameManager>
     #region Methods
     #region Unity
     /// <summary>
-    /// Clamps serialized settings and ensures the singleton wiring is intact.
+    /// Ensures the singleton wiring is intact before runtime.
     /// </summary>
     protected override void Awake()
     {
         base.Awake();
-        ClampConfiguration();
     }
 
     /// <summary>
@@ -105,8 +104,7 @@ public class GameManager : Singleton<GameManager>
         if (!CanRequestPhaseChange)
             return;
 
-        GamePhase nextPhase = currentPhase == GamePhase.Building ? GamePhase.Combat : GamePhase.Building;
-        ApplyPhase(nextPhase, false);
+        ApplyPhase(GamePhase.Defence, false);
     }
 
     /// <summary>
@@ -118,8 +116,6 @@ public class GameManager : Singleton<GameManager>
             return;
 
         currentPhase = phase;
-        if (!force)
-            phaseSwitchCount++;
 
         RefreshPhaseDependants(phase);
         EventsManager.InvokeGamePhaseChanged(phase);
@@ -173,12 +169,11 @@ public class GameManager : Singleton<GameManager>
     }
 
     /// <summary>
-    /// Ensures serialized fields stay within valid ranges.
+    /// Forces a phase change driven by external controllers like the horde manager.
     /// </summary>
-    private void ClampConfiguration()
+    public void ForcePhase(GamePhase phase)
     {
-        if (maxPhaseSwitches < 0)
-            maxPhaseSwitches = 0;
+        ApplyPhase(phase, false);
     }
     #endregion
     #endregion

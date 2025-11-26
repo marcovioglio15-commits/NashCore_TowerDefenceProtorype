@@ -420,7 +420,7 @@ namespace Scriptables.Turrets
         /// </summary>
         private void HandleGamePhaseChanged(GamePhase phase)
         {
-            SetPhaseAutoState(phase == GamePhase.Combat);
+            SetPhaseAutoState(phase == GamePhase.Defence);
         }
 
         /// <summary>
@@ -432,7 +432,7 @@ namespace Scriptables.Turrets
             if (manager == null)
                 return;
 
-            SetPhaseAutoState(manager.CurrentPhase == GamePhase.Combat);
+            SetPhaseAutoState(manager.CurrentPhase == GamePhase.Defence);
         }
         #endregion
 

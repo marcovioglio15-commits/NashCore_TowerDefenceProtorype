@@ -21,7 +21,8 @@ namespace Grid.Editor
             Buildable,
             EnemyGoal,
             EnemySpawn,
-            WallBinding
+            WallBinding,
+            SpawnBinding
         }
         #endregion
 
@@ -45,6 +46,7 @@ namespace Grid.Editor
         private SerializedProperty floorLayerMaskProperty;
         private SerializedProperty floorProbeHalfHeightProperty;
         private SerializedProperty buildableWallBindingsProperty;
+        private SerializedProperty spawnPointBindingsProperty;
         #endregion
 
         #region Runtime State
@@ -53,6 +55,9 @@ namespace Grid.Editor
         private Vector2Int selectedBindingCoords = new Vector2Int(-1, -1);
         private SerializedProperty selectedBindingProperty;
         private bool hasSelectedBinding;
+        private Vector2Int selectedSpawnBindingCoords = new Vector2Int(-1, -1);
+        private SerializedProperty selectedSpawnBindingProperty;
+        private bool hasSelectedSpawnBinding;
         #endregion
 
         #region Methods
@@ -81,6 +86,7 @@ namespace Grid.Editor
             floorLayerMaskProperty = serializedObject.FindProperty("floorLayerMask");
             floorProbeHalfHeightProperty = serializedObject.FindProperty("floorProbeHalfHeight");
             buildableWallBindingsProperty = serializedObject.FindProperty("buildableWallBindings");
+            spawnPointBindingsProperty = serializedObject.FindProperty("spawnNodeBindings");
         }
 
         /// <summary>
@@ -95,6 +101,7 @@ namespace Grid.Editor
             DrawPaintSelector();
             DrawGridPreview();
             DrawWallBindingPanel();
+            DrawSpawnBindingPanel();
             DrawColorAndGizmoControls();
 
             serializedObject.ApplyModifiedProperties();
@@ -127,6 +134,7 @@ namespace Grid.Editor
             EditorGUILayout.PropertyField(buildableNodesProperty, true);
             EditorGUILayout.PropertyField(enemyGoalCellsProperty, true);
             EditorGUILayout.PropertyField(enemySpawnCellsProperty, true);
+            EditorGUILayout.PropertyField(spawnPointBindingsProperty, true);
             EditorGUILayout.Space();
         }
 
@@ -226,6 +234,22 @@ namespace Grid.Editor
                 EditorGUILayout.PropertyField(wallsProperty, new GUIContent("Hidden Walls"), true);
             EditorGUILayout.Space();
         }
+
+        /// <summary>
+        /// Displays spawn binding assignment for the selected spawn node.
+        /// </summary>
+        private void DrawSpawnBindingPanel()
+        {
+            if (!hasSelectedSpawnBinding || selectedSpawnBindingProperty == null)
+                return;
+
+            EditorGUILayout.LabelField("Spawn Binding", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Selected Spawn Cell", $"{selectedSpawnBindingCoords.x},{selectedSpawnBindingCoords.y}");
+            SerializedProperty spawnPointProperty = selectedSpawnBindingProperty.FindPropertyRelative("SpawnPoint");
+            if (spawnPointProperty != null)
+                EditorGUILayout.PropertyField(spawnPointProperty, new GUIContent("Spawn Point"), true);
+            EditorGUILayout.Space();
+        }
         #endregion
 
         #region Helpers
@@ -294,6 +318,12 @@ namespace Grid.Editor
         /// </summary>
         private void ApplyPaint(Vector2Int coords, HashSet<Vector2Int> walkableSet, HashSet<Vector2Int> buildableSet, HashSet<Vector2Int> goalSet, HashSet<Vector2Int> spawnSet)
         {
+            if (activePaintMode != NodePaintMode.SpawnBinding)
+            {
+                hasSelectedSpawnBinding = false;
+                selectedSpawnBindingProperty = null;
+            }
+
             if (activePaintMode == NodePaintMode.WallBinding)
             {
                 if (!buildableSet.Contains(coords))
@@ -306,6 +336,21 @@ namespace Grid.Editor
                 hasSelectedBinding = true;
                 selectedBindingCoords = coords;
                 selectedBindingProperty = GetOrCreateBinding(coords);
+                return;
+            }
+
+            if (activePaintMode == NodePaintMode.SpawnBinding)
+            {
+                if (!spawnSet.Contains(coords))
+                {
+                    hasSelectedSpawnBinding = false;
+                    selectedSpawnBindingProperty = null;
+                    return;
+                }
+
+                hasSelectedSpawnBinding = true;
+                selectedSpawnBindingCoords = coords;
+                selectedSpawnBindingProperty = GetOrCreateSpawnBinding(coords);
                 return;
             }
 
@@ -419,6 +464,37 @@ namespace Grid.Editor
             SerializedProperty wallsProperty = newElement != null ? newElement.FindPropertyRelative("HiddenWalls") : null;
             if (wallsProperty != null)
                 wallsProperty.ClearArray();
+
+            return newElement;
+        }
+
+        /// <summary>
+        /// Returns the serialized spawn binding property for the provided coordinates, creating one if missing.
+        /// </summary>
+        private SerializedProperty GetOrCreateSpawnBinding(Vector2Int coords)
+        {
+            if (spawnPointBindingsProperty == null)
+                return null;
+
+            int count = spawnPointBindingsProperty.arraySize;
+            for (int i = 0; i < count; i++)
+            {
+                SerializedProperty element = spawnPointBindingsProperty.GetArrayElementAtIndex(i);
+                SerializedProperty coordinatesProperty = element != null ? element.FindPropertyRelative("Coordinates") : null;
+                if (coordinatesProperty != null && coordinatesProperty.vector2IntValue == coords)
+                    return element;
+            }
+
+            int newIndex = spawnPointBindingsProperty.arraySize;
+            spawnPointBindingsProperty.InsertArrayElementAtIndex(newIndex);
+            SerializedProperty newElement = spawnPointBindingsProperty.GetArrayElementAtIndex(newIndex);
+            SerializedProperty newCoordinatesProperty = newElement != null ? newElement.FindPropertyRelative("Coordinates") : null;
+            if (newCoordinatesProperty != null)
+                newCoordinatesProperty.vector2IntValue = coords;
+
+            SerializedProperty spawnPointProperty = newElement != null ? newElement.FindPropertyRelative("SpawnPoint") : null;
+            if (spawnPointProperty != null)
+                spawnPointProperty.objectReferenceValue = null;
 
             return newElement;
         }

@@ -38,9 +38,9 @@ public static class EventsManager
     #region Game Phases
     public static Action GamePhaseAdvanceRequested;
     public static Action<GamePhase> GamePhaseChanged;
-    public static Action<int> PlayerGoldChanged;
-    public static Action<int> PlayerGoldEarned;
-    public static Action<int, int> PlayerGoldInsufficient;
+    public static Action<int> PlayerScrapChanged;
+    public static Action<int> PlayerScrapEarned;
+    public static Action<int, int> PlayerScrapInsufficient;
     #endregion
 
     #region Player
@@ -87,9 +87,9 @@ public static class EventsManager
     #region Game Phases
     public static void InvokeGamePhaseAdvanceRequested()=> GamePhaseAdvanceRequested?.Invoke();
     public static void InvokeGamePhaseChanged(GamePhase phase)=> GamePhaseChanged?.Invoke(phase);
-    public static void InvokePlayerGoldChanged(int gold)=> PlayerGoldChanged?.Invoke(gold);
-    public static void InvokePlayerGoldEarned(int amount)=> PlayerGoldEarned?.Invoke(amount);
-    public static void InvokePlayerGoldInsufficient(int currentGold, int requiredGold)=> PlayerGoldInsufficient?.Invoke(currentGold, requiredGold);
+    public static void InvokePlayerScrapChanged(int Scrap)=> PlayerScrapChanged?.Invoke(Scrap);
+    public static void InvokePlayerScrapEarned(int amount)=> PlayerScrapEarned?.Invoke(amount);
+    public static void InvokePlayerScrapInsufficient(int currentScrap, int requiredScrap)=> PlayerScrapInsufficient?.Invoke(currentScrap, requiredScrap);
     #endregion
 
     #region Player
