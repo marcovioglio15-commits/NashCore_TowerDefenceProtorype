@@ -3,6 +3,7 @@ using Grid;
 using Scriptables.Enemies;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading;
 
 /// <summary>
 /// Drives navigation from spawn to the nearest goal using Dijkstra paths with smooth interpolation and rotation.
@@ -40,6 +41,8 @@ public class EnemyMovement : MonoBehaviour
     private readonly Collider[] occupancyBuffer = new Collider[8];
     private float repathCooldownTimer;
     private readonly HashSet<Vector2Int> spawnCells = new HashSet<Vector2Int>();
+    private long spawnOrder;
+    private static long movementSpawnOrderCounter;
 
     #endregion
     #endregion
@@ -102,6 +105,7 @@ public class EnemyMovement : MonoBehaviour
         contactTimer = 0f;
         lockedPlayer = null;
         lockedContactRange = 0f;
+        AssignSpawnOrder();
         BuildPath();
         ResolveSpawnHeightOffset();
         pathCursor = 0;
@@ -366,7 +370,8 @@ public class EnemyMovement : MonoBehaviour
             if (neighbour == null || neighbour == this)
                 continue;
 
-            return true;
+            if (ShouldYieldTo(neighbour))
+                return true;
         }
 
         return false;
@@ -406,6 +411,55 @@ public class EnemyMovement : MonoBehaviour
             return false;
 
         return spawnCells.Contains(coords);
+    }
+
+    /// <summary>
+    /// Assigns a monotonically increasing spawn order for priority handling.
+    /// </summary>
+    private void AssignSpawnOrder()
+    {
+        if (pooledEnemy != null)
+        {
+            spawnOrder = pooledEnemy.SpawnOrder;
+            if (spawnOrder <= 0L)
+                spawnOrder = Interlocked.Increment(ref movementSpawnOrderCounter);
+            else
+                SynchronizeSpawnCounter(spawnOrder);
+            return;
+        }
+
+        spawnOrder = Interlocked.Increment(ref movementSpawnOrderCounter);
+    }
+
+    /// <summary>
+    /// Ensures fallback counter never lags behind pooled assignments.
+    /// </summary>
+    private void SynchronizeSpawnCounter(long referenceOrder)
+    {
+        long current = movementSpawnOrderCounter;
+        while (current < referenceOrder)
+        {
+            long exchanged = Interlocked.CompareExchange(ref movementSpawnOrderCounter, referenceOrder, current);
+            if (exchanged == current)
+                break;
+
+            current = exchanged;
+        }
+    }
+
+    /// <summary>
+    /// Returns true when this enemy should yield to the provided neighbour based on spawn priority.
+    /// </summary>
+    private bool ShouldYieldTo(EnemyMovement neighbour)
+    {
+        long neighbourOrder = neighbour != null ? neighbour.spawnOrder : 0L;
+        if (neighbourOrder <= 0L)
+            return false;
+
+        if (spawnOrder <= 0L)
+            return true;
+
+        return neighbourOrder < spawnOrder;
     }
 
     /// <summary>

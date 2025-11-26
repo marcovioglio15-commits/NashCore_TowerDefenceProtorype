@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Threading;
 using Scriptables.Enemies;
 using Utils.Combat;
 
@@ -40,6 +41,8 @@ namespace Enemy
         private readonly Collider[] contactBuffer = new Collider[8];
         private const float ContactProbeIntervalSeconds = 0.25f;
         private const float ContactEffectCooldownSeconds = 1.1f;
+        private long spawnOrder;
+        private static long spawnOrderCounter;
 
         #endregion
 
@@ -67,6 +70,14 @@ namespace Enemy
         public EnemySpawnContext LastContext
         {
             get { return lastContext; }
+        }
+
+        /// <summary>
+        /// Returns the monotonic order assigned when the enemy was spawned.
+        /// </summary>
+        public long SpawnOrder
+        {
+            get { return spawnOrder; }
         }
 
         #endregion
@@ -123,6 +134,7 @@ namespace Enemy
             currentHealth = activeStats.MaxHealth;
             contactProbeTimer = 0f;
             contactEffectCooldownTimer = 0f;
+            spawnOrder = Interlocked.Increment(ref spawnOrderCounter);
             EnsureMovementController();
             if (movementController != null)
                 movementController.BeginMovement(activeStats);
@@ -145,6 +157,7 @@ namespace Enemy
             currentHealth = activeStats.MaxHealth;
             contactProbeTimer = 0f;
             contactEffectCooldownTimer = 0f;
+            spawnOrder = 0L;
         }
 
         #endregion
