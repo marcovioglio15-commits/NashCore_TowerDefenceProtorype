@@ -46,6 +46,10 @@ namespace Grid.Editor
         private SerializedProperty floorLayerMaskProperty;
         private SerializedProperty floorProbeHalfHeightProperty;
         private SerializedProperty buildableWallBindingsProperty;
+        private SerializedProperty start;
+        private SerializedProperty end;
+        private SerializedProperty path;
+        private SerializedProperty enemy;
         private SerializedProperty spawnPointBindingsProperty;
         #endregion
 
@@ -86,6 +90,10 @@ namespace Grid.Editor
             floorLayerMaskProperty = serializedObject.FindProperty("floorLayerMask");
             floorProbeHalfHeightProperty = serializedObject.FindProperty("floorProbeHalfHeight");
             buildableWallBindingsProperty = serializedObject.FindProperty("buildableWallBindings");
+            start = serializedObject.FindProperty("start");
+            end = serializedObject.FindProperty("end");
+            path = serializedObject.FindProperty("path");
+            enemy = serializedObject.FindProperty("enemy");
             spawnPointBindingsProperty = serializedObject.FindProperty("spawnNodeBindings");
         }
 
@@ -121,6 +129,10 @@ namespace Grid.Editor
             EditorGUILayout.PropertyField(cellSizeProperty);
             EditorGUILayout.PropertyField(floorLayerMaskProperty);
             EditorGUILayout.PropertyField(floorProbeHalfHeightProperty);
+            EditorGUILayout.PropertyField(start);
+            EditorGUILayout.PropertyField(end);
+            EditorGUILayout.PropertyField(path);
+            EditorGUILayout.PropertyField(enemy);
             EditorGUILayout.Space();
         }
 
