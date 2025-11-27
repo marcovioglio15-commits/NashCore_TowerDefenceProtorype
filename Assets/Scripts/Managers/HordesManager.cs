@@ -127,6 +127,9 @@ public class HordesManager : Singleton<HordesManager>
         if (enemy == null)
             return;
 
+        int scrapReward = enemy.Definition.Rewards.ScrapValue;
+        EventsManager.InvokePlayerScrapEarned(scrapReward);
+
         EnemySpawnContext context = enemy.LastContext;
         int subWaveId = context.SubWaveId;
         if (subWaveId < 0)
