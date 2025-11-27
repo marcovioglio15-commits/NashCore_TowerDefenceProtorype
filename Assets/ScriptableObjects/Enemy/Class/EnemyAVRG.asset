@@ -22,7 +22,7 @@ MonoBehaviour:
     maxHealth: 60
     damageNegationPercent: 0
   mobility:
-    movementSpeed: 100
+    movementSpeed: 150
   offense:
     shieldDamage: 15
   rewards:
