@@ -11067,9 +11067,9 @@ Camera:
   m_NormalizedViewPortRect:
     serializedVersion: 2
     x: 0
-    y: 0.06756756
+    y: 0
     width: 1
-    height: 0.8648649
+    height: 1
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 60
@@ -78308,15 +78308,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4569566167501478139, guid: f31f1895dab9afe4d93714ba36ce6b54, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 4569566167501478139, guid: f31f1895dab9afe4d93714ba36ce6b54, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 4569566167501478139, guid: f31f1895dab9afe4d93714ba36ce6b54, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 4569566167501478139, guid: f31f1895dab9afe4d93714ba36ce6b54, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -78357,5 +78357,5 @@ SceneRoots:
   - {fileID: 4819420463283064308}
   - {fileID: 4118203222291074949}
   - {fileID: 1627665676827612740}
-  - {fileID: 6907130113653813465}
   - {fileID: 34506942730914294}
+  - {fileID: 6907130113653813465}

@@ -17,26 +17,36 @@ public class HordesManagerEditor : Editor
     private SerializedProperty hordesProperty;
     private SerializedProperty defenceStartDelayProperty;
     #endregion
+
+    #region Styles
+    private GUIStyle headerStyle;
+    private GUIStyle foldoutStyle;
+    private GUIStyle boxStyle;
+    #endregion
     #endregion
 
     #region Methods
     #region Unity
+    /// <summary>
+    /// Caches serialized properties and initializes GUI styles.
+    /// </summary>
     private void OnEnable()
     {
         gridProperty = serializedObject.FindProperty("grid");
         gameManagerProperty = serializedObject.FindProperty("gameManager");
         hordesProperty = serializedObject.FindProperty("hordes");
         defenceStartDelayProperty = serializedObject.FindProperty("defenceStartDelay");
+        BuildStyles();
     }
 
+    /// <summary>
+    /// Renders a structured inspector with grouped sections.
+    /// </summary>
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
 
-        EditorGUILayout.PropertyField(gridProperty);
-        EditorGUILayout.PropertyField(gameManagerProperty);
-        EditorGUILayout.PropertyField(defenceStartDelayProperty);
-
+        DrawCoreSection();
         DrawHordesSection();
 
         serializedObject.ApplyModifiedProperties();
@@ -44,11 +54,30 @@ public class HordesManagerEditor : Editor
     #endregion
 
     #region Drawing
+    /// <summary>
+    /// Renders core reference fields in a compact box.
+    /// </summary>
+    private void DrawCoreSection()
+    {
+        EditorGUILayout.BeginVertical(boxStyle);
+        DrawSectionHeader("Core References");
+        EditorGUILayout.PropertyField(gridProperty, new GUIContent("Grid"));
+        EditorGUILayout.PropertyField(gameManagerProperty, new GUIContent("Game Manager"));
+        EditorGUILayout.PropertyField(defenceStartDelayProperty, new GUIContent("Defence Start Delay"));
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space();
+    }
+
+    /// <summary>
+    /// Renders the hordes list with wave and spawn configuration.
+    /// </summary>
     private void DrawHordesSection()
     {
-        EditorGUILayout.PropertyField(hordesProperty, new GUIContent("Hordes"), false);
+        hordesProperty.isExpanded = EditorGUILayout.Foldout(hordesProperty.isExpanded, "Hordes", true, foldoutStyle);
         if (!hordesProperty.isExpanded)
+        {
             return;
+        }
 
         Grid3D gridTarget = gridProperty.objectReferenceValue as Grid3D;
         Vector2Int[] spawnCoords = gridTarget != null ? gridTarget.GetEnemySpawnCoords() : System.Array.Empty<Vector2Int>();
@@ -62,8 +91,10 @@ public class HordesManagerEditor : Editor
             SerializedProperty keyProperty = hordeProperty.FindPropertyRelative("key");
             SerializedProperty wavesProperty = hordeProperty.FindPropertyRelative("waves");
 
-            EditorGUILayout.PropertyField(keyProperty);
-            EditorGUILayout.PropertyField(wavesProperty, new GUIContent("Waves"), false);
+            EditorGUILayout.BeginVertical(boxStyle);
+            DrawSectionHeader($"Horde {i + 1}");
+            EditorGUILayout.PropertyField(keyProperty, new GUIContent("Key"));
+            wavesProperty.isExpanded = EditorGUILayout.Foldout(wavesProperty.isExpanded, "Waves", true, foldoutStyle);
             if (wavesProperty.isExpanded)
             {
                 EditorGUI.indentLevel++;
@@ -71,12 +102,15 @@ public class HordesManagerEditor : Editor
                 DrawWaveArrayControls(wavesProperty, spawnCoords);
                 EditorGUI.indentLevel--;
             }
-
+            EditorGUILayout.EndVertical();
             EditorGUILayout.Space();
         }
         EditorGUI.indentLevel--;
     }
 
+    /// <summary>
+    /// Renders each wave entry with enemy composition and spawn settings.
+    /// </summary>
     private void DrawWavesList(SerializedProperty wavesProperty, Vector2Int[] spawnCoords, string[] spawnLabels)
     {
         int waveCount = wavesProperty.arraySize;
@@ -90,28 +124,38 @@ public class HordesManagerEditor : Editor
             SerializedProperty advanceModeProperty = waveProperty.FindPropertyRelative("advanceMode");
             SerializedProperty advanceDelayProperty = waveProperty.FindPropertyRelative("advanceDelaySeconds");
 
-            EditorGUILayout.LabelField($"Wave {i + 1}", EditorStyles.boldLabel);
-
-            DrawEnemyTypesList(enemyTypesProperty);
-            EditorGUILayout.PropertyField(spawnCadenceProperty);
-            DrawSpawnAssignments(spawnAssignmentsProperty, enemyTypesProperty, spawnCoords, spawnLabels);
-            DrawSpawnNodesSelector(spawnNodesProperty, spawnCoords, spawnLabels);
-            EditorGUILayout.PropertyField(advanceModeProperty);
-            EditorGUILayout.PropertyField(advanceDelayProperty);
-            EditorGUILayout.Space();
+            waveProperty.isExpanded = EditorGUILayout.Foldout(waveProperty.isExpanded, $"Wave {i + 1}", true, foldoutStyle);
+            if (waveProperty.isExpanded)
+            {
+                EditorGUI.indentLevel++;
+                DrawEnemyTypesList(enemyTypesProperty);
+                EditorGUILayout.PropertyField(spawnCadenceProperty);
+                DrawSpawnAssignments(spawnAssignmentsProperty, enemyTypesProperty, spawnCoords, spawnLabels);
+                DrawSpawnNodesSelector(spawnNodesProperty, spawnCoords, spawnLabels);
+                EditorGUILayout.PropertyField(advanceModeProperty);
+                EditorGUILayout.PropertyField(advanceDelayProperty);
+                EditorGUI.indentLevel--;
+                EditorGUILayout.Space();
+            }
         }
     }
 
+    /// <summary>
+    /// Renders enemy type definitions in boxed rows with remove and add controls.
+    /// </summary>
     private void DrawEnemyTypesList(SerializedProperty enemyTypesProperty)
     {
-        EditorGUILayout.PropertyField(enemyTypesProperty, new GUIContent("Enemy Types"), false);
         if (enemyTypesProperty == null)
             return;
 
+        enemyTypesProperty.isExpanded = EditorGUILayout.Foldout(enemyTypesProperty.isExpanded, "Enemy Types", true, foldoutStyle);
         if (!enemyTypesProperty.isExpanded)
-            enemyTypesProperty.isExpanded = true;
+            return;
 
         EditorGUI.indentLevel++;
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Space(12f);
+        EditorGUILayout.BeginVertical();
         int typeCount = enemyTypesProperty.arraySize;
         for (int i = 0; i < typeCount; i++)
         {
@@ -123,12 +167,23 @@ public class HordesManagerEditor : Editor
             SerializedProperty offsetProperty = typeProperty.FindPropertyRelative("spawnOffset");
 
             EditorGUILayout.BeginVertical("box");
-            EditorGUILayout.LabelField($"Enemy Type {i + 1}", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(labelProperty);
-            EditorGUILayout.PropertyField(definitionProperty, new GUIContent("Definition"));
-            EditorGUILayout.PropertyField(modifiersProperty, new GUIContent("Runtime Modifiers"), true);
-            EditorGUILayout.PropertyField(countProperty, new GUIContent("Enemy Count"));
-            EditorGUILayout.PropertyField(offsetProperty, new GUIContent("Spawn Offset"));
+            SerializedProperty foldoutProperty = typeProperty.FindPropertyRelative("isExpanded");
+            bool currentExpanded = foldoutProperty != null ? foldoutProperty.boolValue : true;
+            bool newExpanded = EditorGUILayout.Foldout(currentExpanded, $"Enemy Type {i + 1}", true, foldoutStyle);
+            if (foldoutProperty != null)
+                foldoutProperty.boolValue = newExpanded;
+
+            if (newExpanded)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(labelProperty);
+                EditorGUILayout.PropertyField(definitionProperty, new GUIContent("Definition"));
+                EditorGUILayout.PropertyField(modifiersProperty, new GUIContent("Runtime Modifiers"), true);
+                EditorGUILayout.PropertyField(countProperty, new GUIContent("Enemy Count"));
+                EditorGUILayout.PropertyField(offsetProperty, new GUIContent("Spawn Offset"));
+                EditorGUI.indentLevel--;
+            }
+
             if (GUILayout.Button("Remove Enemy Type"))
             {
                 enemyTypesProperty.DeleteArrayElementAtIndex(i);
@@ -168,9 +223,13 @@ public class HordesManagerEditor : Editor
             }
         }
         EditorGUI.indentLevel--;
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.EndHorizontal();
     }
 
-   
+    /// <summary>
+    /// Renders per-spawn assignment filters with toggles per enemy type.
+    /// </summary>
     private void DrawSpawnAssignments(SerializedProperty spawnAssignmentsProperty, SerializedProperty enemyTypesProperty, Vector2Int[] spawnCoords, string[] spawnLabels)
     {
         EditorGUILayout.LabelField("Per-Spawner Filters", EditorStyles.boldLabel);
@@ -193,14 +252,14 @@ public class HordesManagerEditor : Editor
             return;
         }
 
-        EditorGUILayout.PropertyField(spawnAssignmentsProperty, new GUIContent("Assignments"), false);
-        if (spawnAssignmentsProperty == null)
+        spawnAssignmentsProperty.isExpanded = EditorGUILayout.Foldout(spawnAssignmentsProperty.isExpanded, "Assignments", true, foldoutStyle);
+        if (!spawnAssignmentsProperty.isExpanded)
             return;
 
-        if (!spawnAssignmentsProperty.isExpanded)
-            spawnAssignmentsProperty.isExpanded = true;
-
         EditorGUI.indentLevel++;
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Space(12f);
+        EditorGUILayout.BeginVertical();
         int assignmentCount = spawnAssignmentsProperty.arraySize;
         for (int i = 0; i < assignmentCount; i++)
         {
@@ -209,14 +268,22 @@ public class HordesManagerEditor : Editor
             SerializedProperty allowedTypesProperty = assignmentProperty.FindPropertyRelative("allowedEnemyTypeIndices");
 
             EditorGUILayout.BeginVertical("box");
-            EditorGUILayout.LabelField($"Spawner {i + 1}", EditorStyles.boldLabel);
-            DrawSpawnNodeDropdown(spawnNodeProperty, spawnCoords, spawnLabels, i);
-            DrawAllowedEnemyTypes(allowedTypesProperty, enemyTypeLabels);
+            assignmentProperty.isExpanded = EditorGUILayout.Foldout(assignmentProperty.isExpanded, $"Spawner {i + 1}", true, foldoutStyle);
+            if (assignmentProperty.isExpanded)
+            {
+                EditorGUI.indentLevel++;
+                DrawSpawnNodeDropdown(spawnNodeProperty, spawnCoords, spawnLabels, i);
+                DrawAllowedEnemyTypes(allowedTypesProperty, enemyTypeLabels);
+                EditorGUI.indentLevel--;
+            }
+
             if (GUILayout.Button("Remove Spawner"))
             {
                 spawnAssignmentsProperty.DeleteArrayElementAtIndex(i);
                 EditorGUILayout.EndVertical();
                 EditorGUI.indentLevel--;
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.EndHorizontal();
                 return;
             }
             EditorGUILayout.EndVertical();
@@ -246,9 +313,14 @@ public class HordesManagerEditor : Editor
         if (GUILayout.Button("Clear Assignments"))
             spawnAssignmentsProperty.ClearArray();
         EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.EndHorizontal();
         EditorGUI.indentLevel--;
     }
 
+    /// <summary>
+    /// Draws a dropdown constrained to grid spawn cells.
+    /// </summary>
     private void DrawSpawnNodeDropdown(SerializedProperty spawnNodeProperty, Vector2Int[] spawnCoords, string[] spawnLabels, int index)
     {
         if (spawnNodeProperty == null)
@@ -264,6 +336,9 @@ public class HordesManagerEditor : Editor
             spawnNodeProperty.vector2IntValue = spawnCoords[newIndex];
     }
 
+    /// <summary>
+    /// Presents toggles for allowed enemy types on a specific spawner.
+    /// </summary>
     private void DrawAllowedEnemyTypes(SerializedProperty allowedTypesProperty, string[] enemyTypeLabels)
     {
         if (allowedTypesProperty == null)
@@ -294,6 +369,9 @@ public class HordesManagerEditor : Editor
         }
     }
 
+    /// <summary>
+    /// Removes all entries matching a value from a SerializedProperty array.
+    /// </summary>
     private void RemoveIndexFromProperty(SerializedProperty listProperty, int value)
     {
         for (int i = listProperty.arraySize - 1; i >= 0; i--)
@@ -304,6 +382,9 @@ public class HordesManagerEditor : Editor
         }
     }
 
+    /// <summary>
+    /// Builds user-facing labels for enemy type arrays.
+    /// </summary>
     private string[] BuildEnemyTypeLabels(SerializedProperty enemyTypesProperty)
     {
         if (enemyTypesProperty == null || enemyTypesProperty.arraySize == 0)
@@ -326,8 +407,17 @@ public class HordesManagerEditor : Editor
         return labels;
     }
 
+    /// <summary>
+    /// Displays spawn node selectors for each wave entry.
+    /// </summary>
     private void DrawSpawnNodesSelector(SerializedProperty spawnNodesProperty, Vector2Int[] spawnCoords, string[] spawnLabels)
     {
+        if (spawnCoords.Length == 0)
+        {
+            EditorGUILayout.HelpBox("No spawn nodes available. Configure Grid3D spawn cells to enable this list.", MessageType.Warning);
+            return;
+        }
+
         int currentSize = spawnNodesProperty.arraySize;
         for (int i = 0; i < currentSize; i++)
         {
@@ -336,13 +426,12 @@ public class HordesManagerEditor : Editor
             int selectedIndex = System.Array.IndexOf(spawnCoords, currentValue);
             if (selectedIndex < 0)
                 selectedIndex = 0;
-
-            int newIndex = EditorGUILayout.Popup($"Spawn #{i + 1}", selectedIndex, spawnLabels);
-            if (newIndex >= 0 && newIndex < spawnCoords.Length)
-                element.vector2IntValue = spawnCoords[newIndex];
         }
     }
 
+    /// <summary>
+    /// Renders add and remove controls for waves.
+    /// </summary>
     private void DrawWaveArrayControls(SerializedProperty wavesProperty, Vector2Int[] spawnCoords)
     {
         EditorGUILayout.BeginHorizontal();
@@ -357,6 +446,9 @@ public class HordesManagerEditor : Editor
     #endregion
 
     #region Helpers
+    /// <summary>
+    /// Creates readable labels for grid spawn coordinates.
+    /// </summary>
     private string[] BuildSpawnLabels(IReadOnlyList<Vector2Int> coords)
     {
         if (coords == null || coords.Count == 0)
@@ -369,6 +461,9 @@ public class HordesManagerEditor : Editor
         return labels;
     }
 
+    /// <summary>
+    /// Appends a new wave with sensible defaults and first spawn node preselected when available.
+    /// </summary>
     private void AppendWave(SerializedProperty wavesProperty, Vector2Int[] spawnCoords)
     {
         int newIndex = wavesProperty.arraySize;
@@ -432,6 +527,38 @@ public class HordesManagerEditor : Editor
                 spawnNodesProperty.GetArrayElementAtIndex(0).vector2IntValue = spawnCoords[0];
             }
         }
+    }
+
+    /// <summary>
+    /// Builds reusable GUI styles for headers and boxes.
+    /// </summary>
+    private void BuildStyles()
+    {
+        if (headerStyle == null)
+        {
+            headerStyle = new GUIStyle(EditorStyles.boldLabel);
+            headerStyle.fontSize = 11;
+        }
+
+        if (foldoutStyle == null)
+        {
+            foldoutStyle = new GUIStyle(EditorStyles.foldout);
+            foldoutStyle.fontStyle = FontStyle.Bold;
+        }
+
+        if (boxStyle == null)
+        {
+            boxStyle = new GUIStyle(EditorStyles.helpBox);
+            boxStyle.padding = new RectOffset(10, 10, 6, 8);
+        }
+    }
+
+    /// <summary>
+    /// Draws a simple section header label.
+    /// </summary>
+    private void DrawSectionHeader(string label)
+    {
+        EditorGUILayout.LabelField(label, headerStyle);
     }
     #endregion
     #endregion

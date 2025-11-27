@@ -26,5 +26,7 @@ MonoBehaviour:
   lifetimeSeconds: 5
   maxDistance: 25
   splashRadius: 1
-  statusChance: 0.15
+  statusEffect: 1
+  statusChance: 1
   statusDurationSeconds: 1.75
+  statusSlowPercent: 0.35
