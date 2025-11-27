@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 namespace Scriptables.Turrets
@@ -54,6 +55,13 @@ namespace Scriptables.Turrets
         [Tooltip("Transforms aligned to the possessed camera with selectable axis following.")]
         [SerializeField] private FreeAimRotationFollower[] freeAimRotationFollowers;
 
+        [Tooltip("VFX object toggled when the turret is successfully placed.")]
+        [Header("VFX")]
+        [SerializeField] private GameObject placementVfxRoot;
+        [Tooltip("Seconds before the placement VFX is disabled after activation.")]
+        [SerializeField]
+        [Min(0f)] private float placementVfxDuration = 1f;
+
         [Tooltip("Range gizmo color for editor previews.")]
         [Header("Debug")]
         [SerializeField] private Color rangeColor = new Color(0.15f, 0.85f, 1f, 0.45f);
@@ -76,6 +84,7 @@ namespace Scriptables.Turrets
         private Quaternion yawBaseRotation;
         private Renderer[] cachedRenderers;
         private FreeAimRotationFollower[] cachedFollowerFallback;
+        private Coroutine placementVfxRoutine;
 
         #endregion
 
@@ -185,6 +194,7 @@ namespace Scriptables.Turrets
             CacheYawBaseRotation();
             cooldownTimer = 0f;
             heatLevel = 0f;
+            TriggerPlacementVfx();
             return this;
         }
 
@@ -202,6 +212,7 @@ namespace Scriptables.Turrets
             CacheYawBaseRotation();
             cachedRenderers = null;
             cachedFollowerFallback = null;
+            ResetPlacementVfx();
         }
 
         #endregion
@@ -498,6 +509,62 @@ namespace Scriptables.Turrets
                 return;
 
             yawRoot.rotation = Quaternion.RotateTowards(yawBaseRotation, yawRoot.rotation, maxAngle);
+        }
+
+        /// <summary>
+        /// Activates placement VFX and schedules automatic shutdown to keep pooled instances clean.
+        /// </summary>
+        private void TriggerPlacementVfx()
+        {
+            ResetPlacementVfx();
+            if (placementVfxRoot == null)
+                return;
+
+            if (!placementVfxRoot.activeSelf)
+                placementVfxRoot.SetActive(true);
+
+            ParticleSystem[] systems = placementVfxRoot.GetComponentsInChildren<ParticleSystem>(true);
+            for (int i = 0; i < systems.Length; i++)
+            {
+                ParticleSystem system = systems[i];
+                if (system == null)
+                    continue;
+
+                system.Clear(true);
+                system.Play(true);
+            }
+
+            if (placementVfxDuration > 0f)
+                placementVfxRoutine = StartCoroutine(DisablePlacementVfxAfterDelay(placementVfxDuration));
+        }
+
+        /// <summary>
+        /// Stops placement VFX immediately and cancels pending disable routines.
+        /// </summary>
+        private void ResetPlacementVfx()
+        {
+            if (placementVfxRoutine != null)
+            {
+                StopCoroutine(placementVfxRoutine);
+                placementVfxRoutine = null;
+            }
+
+            if (placementVfxRoot != null && placementVfxRoot.activeSelf)
+                placementVfxRoot.SetActive(false);
+        }
+
+        /// <summary>
+        /// Waits the configured delay before disabling placement VFX.
+        /// </summary>
+        private IEnumerator DisablePlacementVfxAfterDelay(float delay)
+        {
+            if (delay > 0f)
+                yield return new WaitForSeconds(delay);
+
+            if (placementVfxRoot != null)
+                placementVfxRoot.SetActive(false);
+
+            placementVfxRoutine = null;
         }
 
         #endregion

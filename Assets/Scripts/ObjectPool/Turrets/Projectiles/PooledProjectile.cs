@@ -21,6 +21,14 @@ namespace Scriptables.Turrets
         [SerializeField] private Color gizmoColor = new Color(1f, 0.5f, 0.1f, 0.45f);
         [Tooltip("Layer mask used to distinguish enemies")]
         [SerializeField] private LayerMask EnemyMask;
+        [Tooltip("Impact VFX toggled when the projectile lands a valid hit.")]
+        [Header("VFX")]
+        [SerializeField] private GameObject impactVfxRoot;
+        [Tooltip("Explosion VFX toggled when bazooka behaviour shots detonate.")]
+        [SerializeField] private GameObject bazookaExplosionVfxRoot;
+        [Tooltip("Seconds to keep the projectile active after triggering VFX before recycling.")]
+        [SerializeField]
+        [Min(0f)] private float impactRecycleDelaySeconds = 0.1f;
         #endregion
 
         #region Runtime
@@ -41,6 +49,11 @@ namespace Scriptables.Turrets
         private readonly HashSet<int> areaRootBuffer = new HashSet<int>(32);
         private int appliedHits;
         private float activeSplashRadius;
+        private bool bazookaModeActive;
+        private bool impactVfxPlayed;
+        private bool explosionVfxPlayed;
+        private bool terminalImpactPending;
+        private float recycleTimer;
         #endregion
 
         #region IDamage
@@ -90,6 +103,11 @@ namespace Scriptables.Turrets
             ConfigureImpactProfile(context);
             ScheduleAutoDespawn();
             appliedHits = 0;
+            terminalImpactPending = false;
+            impactVfxPlayed = false;
+            explosionVfxPlayed = false;
+            recycleTimer = 0f;
+            ResetVfxState();
             return this;
         }
 
@@ -110,6 +128,12 @@ namespace Scriptables.Turrets
             sourceLayer = 0;
             appliedHits = 0;
             activeSplashRadius = 0f;
+            bazookaModeActive = false;
+            impactVfxPlayed = false;
+            explosionVfxPlayed = false;
+            terminalImpactPending = false;
+            recycleTimer = 0f;
+            ResetVfxState();
         }
         #endregion
 
@@ -123,14 +147,33 @@ namespace Scriptables.Turrets
                 return;
 
             float deltaTime = Time.deltaTime;
+            if (terminalImpactPending)
+            {
+                ProcessImpactRecycle(deltaTime);
+                lifetimeTimer += deltaTime;
+                return;
+            }
+
             float stepDistance = travelSpeed * deltaTime;
             if (stepDistance <= 0f)
+            {
+                lifetimeTimer += deltaTime;
+                if (ShouldDespawn())
+                    OnDespawn();
+
                 return;
+            }
 
             ProcessStep(stepDistance);
 
             traveledDistance += stepDistance;
             lifetimeTimer += deltaTime;
+            if (terminalImpactPending)
+            {
+                ProcessImpactRecycle(deltaTime);
+                return;
+            }
+
             if (ShouldDespawn())
                 OnDespawn();
         }
@@ -248,10 +291,12 @@ namespace Scriptables.Turrets
             consumedDistance = nearestDistance;
             Vector3 impactPoint = transform.position + travelDirection * nearestDistance;
             transform.position = impactPoint;
-            ApplyDamageAtPoint(nearestHit.collider, impactPoint);
+            bool appliedDamage = ApplyDamageAtPoint(nearestHit.collider, impactPoint);
+            if (appliedDamage)
+                TriggerImpactVfx();
             remainingPierces--;
             if (remainingPierces <= 0)
-                OnDespawn();
+                BeginImpactRecycle();
 
             return true;
         }
@@ -259,25 +304,28 @@ namespace Scriptables.Turrets
         /// <summary>
         /// Applies damage to all eligible colliders inside the configured damage area.
         /// </summary>
-        private void ApplyDamageAtPoint(Collider primaryCollider, Vector3 impactPoint)
+        private bool ApplyDamageAtPoint(Collider primaryCollider, Vector3 impactPoint)
         {
             if (!HasDefinition)
-                return;
+                return false;
 
             float areaRadius = Mathf.Max(activeSplashRadius, activeDefinition.SplashRadius);
             if (areaRadius <= 0f)
             {
                 if (primaryCollider != null)
-                    ApplyDamageToCollider(primaryCollider, impactPoint);
+                    return ApplyDamageToCollider(primaryCollider, impactPoint);
 
-                return;
+                return false;
             }
 
             areaRootBuffer.Clear();
+            bool applied = false;
             if (primaryCollider != null && primaryCollider.gameObject.activeInHierarchy)
             {
                 areaRootBuffer.Add(primaryCollider.transform.root.GetInstanceID());
-                ApplyDamageToCollider(primaryCollider, impactPoint);
+                bool primaryApplied = ApplyDamageToCollider(primaryCollider, impactPoint);
+                if (primaryApplied)
+                    applied = true;
             }
 
             int found = Physics.OverlapSphereNonAlloc(impactPoint, areaRadius, damageBuffer, EnemyMask, QueryTriggerInteraction.Collide);
@@ -293,8 +341,12 @@ namespace Scriptables.Turrets
                     continue;
 
                 areaRootBuffer.Add(rootId);
-                ApplyDamageToCollider(candidate, impactPoint);
+                bool appliedToCandidate = ApplyDamageToCollider(candidate, impactPoint);
+                if (appliedToCandidate)
+                    applied = true;
             }
+
+            return applied;
         }
 
         /// <summary>
@@ -393,6 +445,7 @@ namespace Scriptables.Turrets
         {
             float overrideRadius = context.OverrideSplashRadius;
             activeSplashRadius = Mathf.Max(overrideRadius, activeDefinition.SplashRadius);
+            bazookaModeActive = overrideRadius > 0f;
         }
 
         /// <summary>
@@ -423,6 +476,101 @@ namespace Scriptables.Turrets
                 return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Starts the recycle window so impact and explosion VFX can play before despawn.
+        /// </summary>
+        private void BeginImpactRecycle()
+        {
+            if (terminalImpactPending)
+                return;
+
+            terminalImpactPending = true;
+            recycleTimer = Mathf.Max(0f, impactRecycleDelaySeconds);
+            travelSpeed = 0f;
+            float targetLifetime = lifetimeTimer + recycleTimer;
+            if (scheduledDespawnSeconds < targetLifetime)
+                scheduledDespawnSeconds = targetLifetime;
+        }
+
+        /// <summary>
+        /// Counts down the recycle window and triggers despawn when elapsed.
+        /// </summary>
+        private void ProcessImpactRecycle(float deltaTime)
+        {
+            if (!terminalImpactPending)
+                return;
+
+            if (recycleTimer > 0f)
+                recycleTimer -= deltaTime;
+
+            if (recycleTimer <= 0f)
+                OnDespawn();
+        }
+
+        /// <summary>
+        /// Activates configured VFX for impacts and bazooka detonations.
+        /// </summary>
+        private void TriggerImpactVfx()
+        {
+            if (!impactVfxPlayed)
+            {
+                ActivateVfxObject(impactVfxRoot);
+                impactVfxPlayed = true;
+            }
+
+            if (bazookaModeActive && !explosionVfxPlayed)
+            {
+                ActivateVfxObject(bazookaExplosionVfxRoot);
+                explosionVfxPlayed = true;
+            }
+        }
+
+        /// <summary>
+        /// Deactivates all VFX roots to prepare for reuse.
+        /// </summary>
+        private void ResetVfxState()
+        {
+            SetVfxActive(impactVfxRoot, false);
+            SetVfxActive(bazookaExplosionVfxRoot, false);
+        }
+
+        /// <summary>
+        /// Safely toggles a VFX root on or off.
+        /// </summary>
+        private void SetVfxActive(GameObject vfxRoot, bool shouldEnable)
+        {
+            if (vfxRoot == null)
+                return;
+
+            if (vfxRoot.activeSelf == shouldEnable)
+                return;
+
+            vfxRoot.SetActive(shouldEnable);
+        }
+
+        /// <summary>
+        /// Reactivates VFX hierarchies and restarts particle systems when available.
+        /// </summary>
+        private void ActivateVfxObject(GameObject vfxRoot)
+        {
+            if (vfxRoot == null)
+                return;
+
+            if (!vfxRoot.activeSelf)
+                vfxRoot.SetActive(true);
+
+            ParticleSystem[] systems = vfxRoot.GetComponentsInChildren<ParticleSystem>(true);
+            for (int i = 0; i < systems.Length; i++)
+            {
+                ParticleSystem system = systems[i];
+                if (system == null)
+                    continue;
+
+                system.Clear(true);
+                system.Play(true);
+            }
         }
 
         /// <summary>
