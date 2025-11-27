@@ -82,6 +82,7 @@ MonoBehaviour:
   levelSceneOrder:
   - TS_Level1
   - TS_Level2
+  - TS_Level3
   phaseToggleButton: {fileID: 0}
   phaseBannerCanvasGroup: {fileID: 0}
   phaseBannerLabel: {fileID: 0}
@@ -91,6 +92,7 @@ MonoBehaviour:
   phaseBannerAlwaysVisible: 0
   buildingPhaseLabel: Building Phase
   combatPhaseLabel: Defence Phase
+  playerHealthFillImage: {fileID: 0}
   ScrapLabel: {fileID: 0}
   ScrapInsufficientColor: {r: 0.9, g: 0.25, b: 0.25, a: 1}
   ScrapInsufficientPulseSeconds: 0.4
