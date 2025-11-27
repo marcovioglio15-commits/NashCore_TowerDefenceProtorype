@@ -29,4 +29,4 @@ MonoBehaviour:
   statusEffect: 1
   statusChance: 1
   statusDurationSeconds: 1.75
-  statusSlowPercent: 1
+  statusSlowPercent: 0.25
