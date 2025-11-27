@@ -43,6 +43,8 @@ public class EnemyMovement : MonoBehaviour
     private readonly HashSet<Vector2Int> spawnCells = new HashSet<Vector2Int>();
     private long spawnOrder;
     private static long movementSpawnOrderCounter;
+    private float slowTimer;
+    private float slowMultiplier = 1f;
 
     #endregion
     #endregion
@@ -78,6 +80,7 @@ public class EnemyMovement : MonoBehaviour
         float deltaTime = Time.deltaTime;
         UpdateContactLock(deltaTime);
         UpdateRepathCooldown(deltaTime);
+        UpdateSlowEffect(deltaTime);
 
         if (!movementActive)
             return;
@@ -111,6 +114,8 @@ public class EnemyMovement : MonoBehaviour
         pathCursor = 0;
         movementActive = worldPath.Count > 0;
         UpdateAnimator(0f);
+        slowTimer = 0f;
+        slowMultiplier = 1f;
     }
 
     /// <summary>
@@ -123,6 +128,28 @@ public class EnemyMovement : MonoBehaviour
         contactTimer = ResolveContactStopDuration();
         contactLocked = true;
         UpdateAnimator(0f);
+    }
+
+    /// <summary>
+    /// Applies a temporary slow multiplier to movement speed.
+    /// </summary>
+    public void ApplySlow(float slowPercent, float durationSeconds)
+    {
+        float clampedPercent = Mathf.Clamp01(slowPercent);
+        float clampedDuration = Mathf.Max(0f, durationSeconds);
+        if (clampedPercent <= 0f || clampedDuration <= 0f)
+            return;
+
+        float candidateMultiplier = Mathf.Clamp01(1f - clampedPercent);
+        if (candidateMultiplier < slowMultiplier)
+        {
+            slowMultiplier = candidateMultiplier;
+            slowTimer = clampedDuration;
+            return;
+        }
+
+        if (Mathf.Approximately(candidateMultiplier, slowMultiplier))
+            slowTimer = Mathf.Max(slowTimer, clampedDuration);
     }
 
     #endregion
@@ -316,7 +343,8 @@ public class EnemyMovement : MonoBehaviour
         if (speed <= 0f && movementSettings != null)
             speed = movementSettings.FallbackSpeed;
 
-        return Mathf.Max(0.01f, speed);
+        float adjustedSpeed = speed * slowMultiplier;
+        return Mathf.Max(0.01f, adjustedSpeed);
     }
 
     /// <summary>
@@ -507,6 +535,22 @@ public class EnemyMovement : MonoBehaviour
     {
         if (repathCooldownTimer > 0f)
             repathCooldownTimer -= deltaTime;
+    }
+
+    /// <summary>
+    /// Updates the active slow timer and clears it when expired.
+    /// </summary>
+    private void UpdateSlowEffect(float deltaTime)
+    {
+        if (slowTimer <= 0f)
+            return;
+
+        slowTimer -= deltaTime;
+        if (slowTimer > 0f)
+            return;
+
+        slowMultiplier = 1f;
+        slowTimer = 0f;
     }
 
     #endregion

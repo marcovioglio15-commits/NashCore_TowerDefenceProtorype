@@ -219,6 +219,21 @@ namespace Enemy
                 HandleDeath();
         }
 
+        /// <summary>
+        /// Applies a temporary slow effect to the movement controller.
+        /// </summary>
+        public void ApplySlowEffect(float slowPercent, float durationSeconds)
+        {
+            if (slowPercent <= 0f || durationSeconds <= 0f)
+                return;
+
+            EnsureMovementController();
+            if (movementController == null)
+                return;
+
+            movementController.ApplySlow(slowPercent, durationSeconds);
+        }
+
         #endregion
 
         #region Private

@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Enemy;
 using Utils.Combat;
 
 namespace Scriptables.Turrets
@@ -284,6 +285,7 @@ namespace Scriptables.Turrets
             float resolvedDamage = ResolveDamage();
             AppliedDamagePayload payload = new AppliedDamagePayload(resolvedDamage, this);
             damagable.ApplyDamage(payload, impactPoint);
+            TryApplyStatusEffect(targetCollider);
             appliedHits++;
             return true;
         }
@@ -393,6 +395,43 @@ namespace Scriptables.Turrets
                 return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Attempts to apply the projectile status effect to eligible enemies.
+        /// </summary>
+        private void TryApplyStatusEffect(Collider targetCollider)
+        {
+            if (activeDefinition == null)
+                return;
+
+            if (targetCollider == null)
+                return;
+
+            if (activeDefinition.StatusEffect == ProjectileStatusEffect.None)
+                return;
+
+            float chance = Mathf.Clamp01(activeDefinition.StatusChance);
+            if (chance <= 0f)
+                return;
+
+            float roll = UnityEngine.Random.value;
+            if (roll > chance)
+                return;
+
+            PooledEnemy pooledEnemy = targetCollider.GetComponentInParent<PooledEnemy>();
+            if (pooledEnemy == null)
+                return;
+
+            switch (activeDefinition.StatusEffect)
+            {
+                case ProjectileStatusEffect.Slow:
+                    float slowPercent = Mathf.Clamp01(activeDefinition.StatusSlowPercent);
+                    float durationSeconds = Mathf.Max(0f, activeDefinition.StatusDurationSeconds);
+                    if (slowPercent > 0f && durationSeconds > 0f)
+                        pooledEnemy.ApplySlowEffect(slowPercent, durationSeconds);
+                    break;
+            }
         }
         #endregion
         #endregion

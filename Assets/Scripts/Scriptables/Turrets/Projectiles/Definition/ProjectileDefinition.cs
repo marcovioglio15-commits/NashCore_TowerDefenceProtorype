@@ -35,7 +35,7 @@ namespace Scriptables.Turrets
         [Tooltip("Radius used to probe for collision hits while traveling without relying on physics colliders.")]
         [SerializeField] private float damageProbeRadius = 0.25f;
 
-        [Header("Flight Behaviour")]
+        [Header("Fight Behaviour")]
         [Tooltip("Units per second and direction speed of the projectile.")]
         [SerializeField] private float speed = 22f;
         [Tooltip("Number of enemies this projectile can pierce before despawning.")]
@@ -46,10 +46,14 @@ namespace Scriptables.Turrets
         [SerializeField]private float maxDistance = 25f;
         [Tooltip("Radius for impact-based area damage. Set to zero for pure single target shots.")]
         [SerializeField]private float splashRadius = 0f;
-        [Tooltip("Probability that this projectile applies a stagger or status effect on hit.")]
-        [SerializeField] private float statusChance = 0.15f;
+        [Tooltip("Status effect applied when the projectile hits a valid enemy.")]
+        [SerializeField] private ProjectileStatusEffect statusEffect = ProjectileStatusEffect.None;
+        [Tooltip("Chance to apply the selected status effect on hit [0-1].")]
+        [SerializeField, Range(0f, 1f)] private float statusChance = 0.15f;
         [Tooltip("Seconds the applied status effect remains active.")]
         [SerializeField]private float statusDurationSeconds = 1.75f;
+        [Tooltip("Percentage of movement speed reduced when the Slow effect is applied [0-1].")]
+        [SerializeField, Range(0f, 1f)] private float statusSlowPercent = 0.35f;
         #endregion
 
         #region Public Properties (Get)
@@ -132,7 +136,26 @@ namespace Scriptables.Turrets
         {
             get { return statusDurationSeconds; }
         }
+
+        public ProjectileStatusEffect StatusEffect
+        {
+            get { return statusEffect; }
+        }
+
+        public float StatusSlowPercent
+        {
+            get { return statusSlowPercent; }
+        }
         #endregion
+    }
+
+    /// <summary>
+    /// Enumerates projectile-applied status effects for hit enemies.
+    /// </summary>
+    public enum ProjectileStatusEffect
+    {
+        None,
+        Slow
     }
 
     [Serializable]
