@@ -10,40 +10,40 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b8bf5d7b23271204f84f3adf1da36685, type: 3}
-  m_Name: TC_ConsecutiveShooter
+  m_Name: TC_BazookaFrost
   m_EditorClassIdentifier: 
-  key: TC_ConsecutiveShooter
-  displayName: TC_ConsecutiveShooter
-  description: Tower Class - Consecutive linear shooter
-  icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
-  turretPrefab: {fileID: 3500021065220146295, guid: c89828e3c044dcd4085e3c0175c0d8bd, type: 3}
-  turretPool: {fileID: 11400000, guid: c57960a14253130449463706e7ce18b1, type: 2}
-  projectile: {fileID: 11400000, guid: a01834a1dff6b8a4da0add0b6aa72f84, type: 2}
-  projectilePool: {fileID: 11400000, guid: 4e4864ca9534c6f41a5e8d6f2f1e6afd, type: 2}
+  key: TC_ConeShooter
+  displayName: TC_ConeShooter
+  description: Tower Class - Cone Shooter
+  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  turretPrefab: {fileID: 2543766984240034746, guid: 5637a2392a57ee54a9a06a2167152768, type: 3}
+  turretPool: {fileID: 11400000, guid: 3e16b0dd0d14e1840af44ab735c2c803, type: 2}
+  projectile: {fileID: 11400000, guid: c92a44fb377fcee409a7de1733de080f, type: 2}
+  projectilePool: {fileID: 11400000, guid: 75a1cd4eec4de3e4fb560729aaf40c31, type: 2}
   durability:
     health: 150
     armor: 10
     magicResistance: 8
     passiveRegenPerSecond: 1.5
   targeting:
-    range: 15
+    range: 20
     turnRate: 240
     yawClampDegrees: 0
     deadZoneRadius: 0.5
     retargetInterval: 0.75
   automaticFire:
-    cadenceSeconds: 0.75
+    cadenceSeconds: 2
     projectilesPerShot: 1
-    interProjectileDelay: 0.75
-    pattern: 1
+    interProjectileDelay: 0.08
+    pattern: 2
   freeAimFire:
-    cadenceSeconds: 0.6
+    cadenceSeconds: 3
     projectilesPerShot: 1
-    interProjectileDelay: 0.75
-    pattern: 1
+    interProjectileDelay: 0
+    pattern: 2
   modeSwitchSeconds: 1
   economy:
-    buildCost: 100
+    buildCost: 170
     upkeepCost: 2
     salvageDelay: 1.5
     refundRatio: 0.85

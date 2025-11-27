@@ -26,24 +26,24 @@ MonoBehaviour:
     magicResistance: 8
     passiveRegenPerSecond: 1.5
   targeting:
-    range: 16
+    range: 20
     turnRate: 240
     yawClampDegrees: 0
     deadZoneRadius: 0.5
     retargetInterval: 0.75
   automaticFire:
-    cadenceSeconds: 0.45
+    cadenceSeconds: 2
     projectilesPerShot: 1
     interProjectileDelay: 0.08
     pattern: 2
   freeAimFire:
-    cadenceSeconds: 0.25
+    cadenceSeconds: 1.5
     projectilesPerShot: 1
     interProjectileDelay: 0
     pattern: 2
   modeSwitchSeconds: 1
   economy:
-    buildCost: 120
+    buildCost: 200
     upkeepCost: 2
     salvageDelay: 1.5
     refundRatio: 0.85

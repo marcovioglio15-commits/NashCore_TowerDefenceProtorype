@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6d62f2e62a6c17c4e9140b8e42c19703, type: 3}
-  m_Name: PC_Bazooka
+  m_Name: PC_BazookaFrost
   m_EditorClassIdentifier: 
   key: projectile_default
   icon: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
   projectilePrefab: {fileID: 7471823979336599820, guid: c6592871d6c722445b6d0ab0838bf047, type: 3}
   pool: {fileID: 11400000, guid: 75a1cd4eec4de3e4fb560729aaf40c31, type: 2}
-  damage: 25
+  damage: 3
   criticalChance: 0.1
   criticalMultiplier: 1.5
   pierceFalloffRatio: 0.2
@@ -26,7 +26,7 @@ MonoBehaviour:
   lifetimeSeconds: 5
   maxDistance: 20
   splashRadius: 5
-  statusEffect: 0
+  statusEffect: 1
   statusChance: 1
   statusDurationSeconds: 1.75
   statusSlowPercent: 1

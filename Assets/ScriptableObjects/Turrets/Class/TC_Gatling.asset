@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b8bf5d7b23271204f84f3adf1da36685, type: 3}
-  m_Name: TC_ConsecutiveShooter
+  m_Name: TC_Gatling
   m_EditorClassIdentifier: 
-  key: TC_ConsecutiveShooter
-  displayName: TC_ConsecutiveShooter
-  description: Tower Class - Consecutive linear shooter
+  key: TC_Gatling
+  displayName: TC_Gatling
+  description: Tower Class - Gatling glorb
   icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
   turretPrefab: {fileID: 3500021065220146295, guid: c89828e3c044dcd4085e3c0175c0d8bd, type: 3}
   turretPool: {fileID: 11400000, guid: c57960a14253130449463706e7ce18b1, type: 2}
@@ -32,18 +32,18 @@ MonoBehaviour:
     deadZoneRadius: 0.5
     retargetInterval: 0.75
   automaticFire:
-    cadenceSeconds: 0.75
+    cadenceSeconds: 1.5
     projectilesPerShot: 1
-    interProjectileDelay: 0.75
+    interProjectileDelay: 1.5
     pattern: 1
   freeAimFire:
-    cadenceSeconds: 0.6
+    cadenceSeconds: 0.5
     projectilesPerShot: 1
     interProjectileDelay: 0.75
     pattern: 1
   modeSwitchSeconds: 1
   economy:
-    buildCost: 100
+    buildCost: 125
     upkeepCost: 2
     salvageDelay: 1.5
     refundRatio: 0.85
